@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --yellow: #F5C535;
+  --yellow-light: #FEF3B0;
+  --yellow-dark: #C99D1A;
+  --pink: #E83567;
+  --pink-light: #FBC4D5;
+  --pink-dark: #BA1F4F;
+  --teal: #2EAA8A;
+  --teal-light: #B3E8DC;
+  --teal-dark: #1F7D65;
+  --blue: #2878B5;
+  --blue-light: #BAD9F3;
+  --blue-dark: #1A5C8E;
+  --offblack: #1A1A1A;
+  --grey: #6B6B6B;
+  --light: #F6F6F6;
+  --border: #E4E4E4;
+  --bg: #F0F0F0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--offblack);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-up { animation: fadeInUp 0.4s ease forwards; }
+.animate-slide-left { animation: slideInLeft 0.3s ease forwards; }
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+.nav-active {
+  color: white !important;
+  border-left: 3px solid var(--yellow);
+  background: rgba(245, 197, 53, 0.08);
+}
