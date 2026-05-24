@@ -44,12 +44,12 @@ export default function CVBuilderView() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="cv-grid">
         {/* Left — Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Card>
             <SectionHeader tag="Feature 01" title="Personal Information" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="cv-fields">
               {[
                 { label: 'Full Name', val: 'Amara Osei', type: 'text' },
                 { label: 'Job Title', val: 'Product Manager', type: 'text' },
@@ -104,7 +104,7 @@ export default function CVBuilderView() {
                 Auto-tailor {tailorMode ? 'ON' : 'OFF'}
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div className="cv-fields" style={{ marginBottom: 10 }}>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
                   Role Applying For

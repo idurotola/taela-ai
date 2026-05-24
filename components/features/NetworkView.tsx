@@ -27,7 +27,7 @@ export default function NetworkView() {
   return (
     <div>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="stats-grid" style={{ marginBottom: 20 }}>
         <StatCard label="Connections" value="312" trend="↑ 12 this month" trendUp accent="yellow" />
         <StatCard label="Pending Intros" value="3" trend="Awaiting reply" trendUp={false} accent="pink" />
         <StatCard label="Warm Referrals" value="7" trend="↑ 2 new this week" trendUp accent="teal" />
@@ -73,7 +73,7 @@ export default function NetworkView() {
       </div>
 
       {/* Contact grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div className="contact-grid">
         {filtered.map((contact: NetworkContact) => {
           const fit = FIT_STYLE[contact.referralFit];
           const isConnected = connected.has(contact.id);
@@ -166,7 +166,7 @@ export default function NetworkView() {
       {/* Referral Tips */}
       <Card style={{ marginTop: 16 }}>
         <SectionHeader title="Referral Tips" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="three-col">
           {[
             { tip: 'Personalise every message', detail: 'Mention a specific project, article, or shared connection in your outreach.', color: '#F5C535' },
             { tip: 'Follow up once', detail: 'If no reply in 7 days, a single polite follow-up doubles your response rate.', color: '#2EAA8A' },

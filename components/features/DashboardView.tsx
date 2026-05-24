@@ -33,7 +33,7 @@ export default function DashboardView({ onNavigate }: DashboardProps) {
   return (
     <div>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="stats-grid" style={{ marginBottom: 20 }}>
         <StatCard label="Applications Sent" value="47" trend="↑ 12 this week" trendUp accent="yellow" />
         <StatCard label="Interview Invites" value="8" trend="↑ 17% rate" trendUp accent="pink" />
         <StatCard label="CV Score (ATS)" value="84/100" trend="↑ +6 pts today" trendUp accent="teal" />
@@ -41,7 +41,7 @@ export default function DashboardView({ onNavigate }: DashboardProps) {
       </div>
 
       {/* Middle row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="two-col" style={{ marginBottom: 16 }}>
         {/* Best Matches */}
         <Card>
           <SectionHeader tag="Recommended Today" title="Best Job Matches" action={
@@ -129,7 +129,7 @@ export default function DashboardView({ onNavigate }: DashboardProps) {
             <Button size="sm" variant="outline" onClick={() => onNavigate('tracker')}>View All →</Button>
           }
         />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="pipeline-row">
           {PIPELINE.map((stage, i) => (
             <Fragment key={stage.label}>
               <div

@@ -45,8 +45,8 @@ export default function Topbar({ activeView }: TopbarProps) {
 
       {/* Search */}
       <div
+        className="topbar-search"
         style={{
-          display: 'flex',
           alignItems: 'center',
           gap: 8,
           background: '#F6F6F6',

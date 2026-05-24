@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react';
 import { NavView } from '@/types';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
+import BottomNav from '@/components/layout/BottomNav';
 import DashboardView from '@/components/features/DashboardView';
 import CVBuilderView from '@/components/features/CVBuilderView';
 import JobSearchView from '@/components/features/JobSearchView';
@@ -33,16 +34,13 @@ export default function DashboardPage() {
         <Topbar activeView={activeView} />
         <main
           key={activeView}
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '24px 28px',
-            animation: 'fadeInUp 0.3s ease forwards',
-          }}
+          className="dash-main"
+          style={{ animation: 'fadeInUp 0.3s ease forwards' }}
         >
           {renderView()}
         </main>
       </div>
+      <BottomNav activeView={activeView} onNavigate={setActiveView} />
     </div>
   );
 }

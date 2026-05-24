@@ -37,11 +37,11 @@ interface SidebarProps {
 export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
   return (
     <aside
+      className="sidebar-desktop"
       style={{
         width: 220,
         minWidth: 220,
         background: '#000',
-        display: 'flex',
         flexDirection: 'column',
         height: '100vh',
         position: 'sticky',

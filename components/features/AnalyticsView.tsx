@@ -29,14 +29,14 @@ export default function AnalyticsView() {
   return (
     <div>
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="stats-grid" style={{ marginBottom: 20 }}>
         <StatCard label="Response Rate" value="17%" trend="↑ Above 12% avg" trendUp accent="yellow" />
         <StatCard label="Interview Rate" value="23%" trend="↑ Top 10% of users" trendUp accent="teal" />
         <StatCard label="Avg Time to Reply" value="4.2d" trend="↓ 1.3d faster" trendUp accent="pink" />
         <StatCard label="Best Apply Day" value="Tue" trend="3× higher response" trendUp accent="blue" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="two-col" style={{ marginBottom: 16 }}>
         {/* Platform bar chart */}
         <Card>
           <SectionHeader tag="Feature 03" title="Applications by Platform" />
@@ -98,7 +98,7 @@ export default function AnalyticsView() {
         </Card>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div className="two-one-col">
         {/* Market Insights */}
         <Card>
           <SectionHeader title="Market Insights" action={

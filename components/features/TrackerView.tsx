@@ -36,9 +36,9 @@ export default function TrackerView() {
           borderRadius: 12,
           padding: '14px 20px',
           marginBottom: 18,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 24,
+          overflowX: 'auto',
+        gap: 16,
+        flexWrap: 'wrap',
         }}
       >
         <div>
@@ -59,7 +59,8 @@ export default function TrackerView() {
       </div>
 
       {/* Kanban */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+      <div className="kanban-wrapper">
+      <div className="kanban-grid">
         {STAGES.map((stage) => {
           const cards = getByStage(stage.id);
           return (
@@ -186,6 +187,7 @@ export default function TrackerView() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
