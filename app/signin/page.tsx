@@ -18,11 +18,11 @@ export default function SignInPage() {
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      background: '#F6F6F6', fontFamily: 'Nunito, sans-serif', padding: 24,
+      background: '#F5EFE8', fontFamily: 'Nunito, sans-serif', padding: 24,
     }}>
       <Link href="/" style={{
         fontWeight: 800, fontSize: 24, letterSpacing: '-0.5px',
-        textDecoration: 'none', color: '#1A1A1A', marginBottom: 32,
+        textDecoration: 'none', color: '#1E4845', marginBottom: 32,
       }}>
         Taela<span style={{ color: '#F5C535' }}>AI</span>
       </Link>
@@ -69,9 +69,9 @@ export default function SignInPage() {
 
           <button type="submit" style={{
             marginTop: 8, padding: '12px', borderRadius: 10, fontWeight: 800,
-            fontSize: 15, background: '#F5C535', color: '#1A1A1A',
+            fontSize: 15, background: '#1E4845', color: '#fff',
             border: 'none', cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
-            boxShadow: '0 4px 16px rgba(245,197,53,0.35)',
+            boxShadow: '0 4px 16px rgba(30,72,69,0.28)',
           }}>
             Sign in
           </button>
@@ -79,7 +79,7 @@ export default function SignInPage() {
 
         <p style={{ textAlign: 'center', fontSize: 13, color: '#6B6B6B', marginTop: 24 }}>
           Don't have an account?{' '}
-          <Link href="/signup" style={{ fontWeight: 700, color: '#1A1A1A' }}>Sign up</Link>
+          <Link href="/signup" style={{ fontWeight: 700, color: '#1E4845' }}>Sign up</Link>
         </p>
       </div>
     </div>
