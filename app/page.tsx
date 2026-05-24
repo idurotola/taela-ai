@@ -25,15 +25,15 @@ export default function LandingPage() {
     <div style={{ fontFamily: 'Nunito, sans-serif', background: WHITE, color: OFF_BLACK }}>
 
       {/* Nav */}
-      <nav style={{
+      <nav className="landing-nav" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 48px', height: 68, background: TEAL,
+        height: 68, background: TEAL,
         position: 'sticky', top: 0, zIndex: 100,
       }}>
         <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', color: WHITE }}>
           Taela<span style={{ color: '#F5C535' }}>AI</span>
         </span>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="landing-nav-buttons">
           <Link href="/signin" style={{
             padding: '8px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14,
             border: '1.5px solid rgba(255,255,255,0.35)', color: WHITE,

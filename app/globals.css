@@ -60,3 +60,11 @@ body {
   border-left: 3px solid var(--yellow);
   background: rgba(245, 197, 53, 0.08);
 }
+
+.landing-nav { padding: 0 48px; }
+.landing-nav-buttons { display: flex; gap: 12px; flex-shrink: 0; }
+
+@media (max-width: 540px) {
+  .landing-nav { padding: 0 16px; }
+  .landing-nav-buttons a { padding: 7px 14px !important; font-size: 13px !important; }
+}
