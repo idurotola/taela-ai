@@ -1,11 +1,39 @@
+databases:
+  - name: taela-ai-db
+    plan: free
+    postgresMajorVersion: "16"
+
 services:
+  # --- Backend API (Go) ---
+  - type: web
+    name: taela-ai-backend
+    runtime: docker
+    dockerfilePath: ./Backend/Dockerfile
+    dockerContext: ./Backend
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DATABASE_URL
+        fromDatabase:
+          name: taela-ai-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://taela-ai.onrender.com
+
+  # --- Frontend (Next.js) ---
   - type: web
     name: taela-ai
     runtime: node
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: cd Frontend && npm install && npm run build
+    startCommand: cd Frontend && npm start
     envVars:
       - key: NODE_VERSION
         value: 20
       - key: PORT
         value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        value: https://taela-ai-backend.onrender.com

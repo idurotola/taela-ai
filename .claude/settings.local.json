@@ -5,7 +5,9 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "WebFetch(domain:taelahr.com)"
+      "WebFetch(domain:taelahr.com)",
+      "Bash(rm -rf .next)",
+      "Bash(rm -f tsconfig.tsbuildinfo next-env.d.ts)"
     ]
   }
 }
