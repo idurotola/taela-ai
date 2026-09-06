@@ -1,3 +1,11 @@
+# This container runs both the API and its own Postgres server (see
+# Dockerfile / docker-entrypoint.sh). In the Railway dashboard for this
+# service:
+#   - attach a Volume mounted at /var/lib/postgresql/data (required —
+#     without it the database resets on every redeploy)
+#   - set POSTGRES_PASSWORD (required), plus JWT_SECRET, ADMIN_TOKEN,
+#     ALLOWED_ORIGINS
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"

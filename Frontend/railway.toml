@@ -1,3 +1,7 @@
+# Set NEXT_PUBLIC_API_URL (the backend service's public Railway URL) as an
+# env var on this service before deploying — Next.js inlines it at build
+# time, so it must be set before `npm run build` runs, not just at runtime.
+
 [build]
 builder = "NIXPACKS"
 buildCommand = "npm ci && npm run build"

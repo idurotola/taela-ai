@@ -92,4 +92,13 @@ The job catalog isn't hand-entered — it's synced from [MyJobMag's public RSS f
 
 ## Deploying
 
-`Dockerfile` builds a static binary into a minimal Alpine image, listening on `$PORT` (default `8080`). Set `DATABASE_URL`, `JWT_SECRET`, `ADMIN_TOKEN`, and `ALLOWED_ORIGINS` (comma-separated, should include your deployed frontend's origin) as environment variables on the host.
+`Dockerfile` builds the API into a minimal Alpine image that also runs its own Postgres server in the same container (Postgres only listens on `localhost` — nothing outside the container talks to it directly). `docker-entrypoint.sh` initializes the data directory on first boot, starts Postgres, provisions the `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` role and database, derives `DATABASE_URL` itself, then execs the API, which listens on `$PORT` (default `8080`).
+
+Set these environment variables on the host:
+
+- `POSTGRES_PASSWORD` — required, no default (the container refuses to start without it)
+- `POSTGRES_DB` (default `taela_ai`), `POSTGRES_USER` (default `postgres`) — optional
+- `JWT_SECRET`, `ADMIN_TOKEN` — generate real random values for anything beyond local dev
+- `ALLOWED_ORIGINS` — comma-separated, should include your deployed frontend's origin
+
+**Persistence:** mount a volume at `/var/lib/postgresql/data` (a Railway Volume, if deploying there) — without one, the database resets to empty on every redeploy since the container filesystem is otherwise ephemeral.
