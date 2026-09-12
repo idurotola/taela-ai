@@ -8,6 +8,11 @@ POSTGRES_DB="${POSTGRES_DB:-taela_ai}"
 
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
   echo "==> initializing Postgres data directory at $PGDATA"
+  # The mount may carry leftovers from an earlier, incompatible cluster (or
+  # just be non-empty for other reasons) — initdb refuses to run unless the
+  # directory is empty, so clear it first since there's no valid PG_VERSION
+  # to preserve anyway.
+  find "$PGDATA" -mindepth 1 -delete
   su-exec postgres initdb -D "$PGDATA" --username="$POSTGRES_USER" --auth=trust >/dev/null
 fi
 
