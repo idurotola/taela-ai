@@ -19,9 +19,8 @@ COPY --from=build /out/api /usr/local/bin/api
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Mount a Railway Volume at $PGDATA so the database survives redeploys —
-# without one, every deploy starts from an empty database.
-VOLUME ["/var/lib/postgresql/data"]
+# A Railway Volume is attached to $PGDATA (see .railway/railway.ts) so the
+# database survives redeploys — without one, every deploy starts empty.
 
 EXPOSE 8080
 ENTRYPOINT ["/sbin/tini", "--", "docker-entrypoint.sh"]
