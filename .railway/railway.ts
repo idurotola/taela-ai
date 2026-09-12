@@ -4,7 +4,7 @@ export default defineRailway(() => {
   const postgresVolume = volume("postgres-volume", { region: "ams", sizeMB: 500, allowOnlineResize: true });
 
   const backend = service("backend", {
-    source: github("idurotola/taela-ai", { branch: "railway-deploy", rootDirectory: "Backend" }),
+    source: github("idurotola/taela-ai", { branch: "main", rootDirectory: "Backend" }),
     build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     healthcheck: "/healthz",
     healthcheckTimeout: 100,
@@ -18,7 +18,7 @@ export default defineRailway(() => {
   });
 
   const frontend = service("frontend", {
-    source: github("idurotola/taela-ai", { branch: "railway-deploy", rootDirectory: "Frontend" }),
+    source: github("idurotola/taela-ai", { branch: "main", rootDirectory: "Frontend" }),
     build: "npm run build",
     start: "npm start",
     env: {
