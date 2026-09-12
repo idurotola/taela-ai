@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git --version)"
+      "Bash(git --version)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:taelahr.com)",
+      "Bash(rm -rf .next)",
+      "Bash(rm -f tsconfig.tsbuildinfo next-env.d.ts)",
+      "Bash(nohup go run ./cmd/api)",
+      "Bash(disown)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s http://localhost:8080/healthz)"
     ]
   }
 }
