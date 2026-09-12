@@ -6,6 +6,12 @@ POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
 POSTGRES_DB="${POSTGRES_DB:-taela_ai}"
 
+# A freshly mounted Railway Volume is owned by root, not postgres — the
+# build-time chown in the Dockerfile only affects the image layer, not a
+# volume mounted over it at runtime. Fix ownership here, as root, before
+# any postgres-user command needs to write to or chmod this directory.
+chown postgres:postgres "$PGDATA"
+
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
   echo "==> initializing Postgres data directory at $PGDATA"
   # The mount may carry leftovers from an earlier, incompatible cluster (or
