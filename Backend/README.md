@@ -11,10 +11,12 @@ The API for TaelaAI: Go + [Gin](https://gin-gonic.com/) + [GORM](https://gorm.io
 
 ## Quick start
 
-Requires a Postgres database. Easiest local option is Docker:
+Requires a Postgres database. Easiest local option is the `docker-compose.yml` at the repo root (dev-only — production uses a managed Postgres instance, see `render.yaml`):
 
 ```bash
-docker run -d --name taela-ai-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=taela_ai -p 5432:5432 postgres:16-alpine
+cd ..                     # repo root
+docker compose up -d      # starts Postgres on :5432, persisted in a named volume
+cd Backend
 ```
 
 Then:

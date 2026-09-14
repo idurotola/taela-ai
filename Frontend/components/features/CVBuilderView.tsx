@@ -7,7 +7,8 @@ import Tag, { TagVariant } from '@/components/ui/Tag';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { api, ApiError } from '@/lib/api';
 import { CV } from '@/types';
-import { Check, AlertTriangle, X, Wand2, Download, Plus } from 'lucide-react';
+import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy } from 'lucide-react';
+import { buildCvText, downloadCvPdf, downloadCvDocx } from '@/lib/cvExport';
 
 const STATUS_ICON = {
   ok:   <Check size={14} color="#2EAA8A" />,
@@ -48,6 +49,9 @@ export default function CVBuilderView() {
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addingExp, setAddingExp] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingDocx, setExportingDocx] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     Promise.all([api.cv(), api.keywords()])
@@ -115,6 +119,38 @@ export default function CVBuilderView() {
       setError(err instanceof ApiError ? err.message : 'Failed to add experience.');
     } finally {
       setAddingExp(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setExportingPdf(true);
+    try {
+      await downloadCvPdf(cv);
+    } catch {
+      setError('Failed to generate PDF.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleDownloadDocx = async () => {
+    setExportingDocx(true);
+    try {
+      await downloadCvDocx(cv);
+    } catch {
+      setError('Failed to generate Word document.');
+    } finally {
+      setExportingDocx(false);
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(buildCvText(cv));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Failed to copy to clipboard.');
     }
   };
 
@@ -323,14 +359,14 @@ export default function CVBuilderView() {
           <Card>
             <SectionHeader title="Export & Download" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <Button variant="teal" fullWidth icon={<Download size={14} />}>
-                Download ATS-Optimised PDF
+              <Button variant="teal" fullWidth icon={<Download size={14} />} onClick={handleDownloadPdf} disabled={exportingPdf}>
+                {exportingPdf ? 'Generating…' : 'Download ATS-Optimised PDF'}
               </Button>
-              <Button variant="outline" fullWidth icon={<Download size={14} />}>
-                Download Word (.docx)
+              <Button variant="outline" fullWidth icon={<Download size={14} />} onClick={handleDownloadDocx} disabled={exportingDocx}>
+                {exportingDocx ? 'Generating…' : 'Download Word (.docx)'}
               </Button>
-              <Button variant="outline" fullWidth>
-                Copy to Clipboard
+              <Button variant="outline" fullWidth icon={<Copy size={14} />} onClick={handleCopyToClipboard}>
+                {copied ? 'Copied!' : 'Copy to Clipboard'}
               </Button>
             </div>
             <p style={{ fontSize: 11, color: '#6B6B6B', marginTop: 10, lineHeight: 1.5 }}>

@@ -9,6 +9,7 @@ import type {
   MarketInsight,
   NetworkContact,
   User,
+  UserSettings,
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -68,6 +69,14 @@ export const api = {
   signin: (email: string, password: string) =>
     request<AuthResponse>('/api/auth/signin', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<User>('/api/auth/me'),
+  updateAccount: (data: { name?: string; email?: string }) =>
+    request<User>('/api/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  updatePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<void>('/api/auth/password', { method: 'PUT', body: JSON.stringify(data) }),
+
+  settings: () => request<UserSettings>('/api/settings'),
+  updateSettings: (data: Partial<UserSettings>) =>
+    request<UserSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
   jobs: () => request<JobListing[]>('/api/jobs'),
   applyToJob: (id: string) => request<Application>(`/api/jobs/${id}/apply`, { method: 'POST' }),

@@ -12,6 +12,7 @@ import JobSearchView from '@/components/features/JobSearchView';
 import TrackerView from '@/components/features/TrackerView';
 import AnalyticsView from '@/components/features/AnalyticsView';
 import NetworkView from '@/components/features/NetworkView';
+import SettingsView from '@/components/features/SettingsView';
 import { api, getToken, clearToken, ApiError } from '@/lib/api';
 
 export default function DashboardPage() {
@@ -49,6 +50,7 @@ export default function DashboardPage() {
       case 'tracker':     return <TrackerView />;
       case 'analytics':   return <AnalyticsView />;
       case 'network':     return <NetworkView />;
+      case 'settings':    return <SettingsView user={user} onUserUpdate={setUser} />;
       default:            return <DashboardView onNavigate={setActiveView} />;
     }
   };

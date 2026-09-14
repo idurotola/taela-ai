@@ -1,4 +1,4 @@
-export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'network';
+export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'network' | 'settings';
 
 export interface StatCard {
   label: string;
@@ -73,6 +73,13 @@ export interface User {
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+export interface UserSettings {
+  jobMatchAlerts: boolean;
+  applicationUpdates: boolean;
+  weeklyDigest: boolean;
+  networkSuggestions: boolean;
 }
 
 export interface CVExperience {

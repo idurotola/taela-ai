@@ -10,6 +10,7 @@ const VIEW_TITLES: Record<NavView, string> = {
   tracker: 'Application Tracker',
   analytics: 'Analytics & Insights',
   network: 'Network & Referrals',
+  settings: 'Settings',
 };
 
 interface TopbarProps {

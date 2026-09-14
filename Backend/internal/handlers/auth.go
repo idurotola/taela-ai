@@ -99,3 +99,81 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, dto.FromUser(user))
 }
+
+type updateAccountRequest struct {
+	Name  *string `json:"name"`
+	Email *string `json:"email" binding:"omitempty,email"`
+}
+
+// UpdateAccount lets a signed-in user change their display name and/or email.
+// The CV record mirrors name/email as its own editable copy (set at signup
+// and again on save from the CV Builder), so it is intentionally left alone
+// here rather than overwritten.
+func (h *AuthHandler) UpdateAccount(c *gin.Context) {
+	userID := auth.UserID(c)
+	var user models.User
+	if err := h.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	var req updateAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Email != nil && *req.Email != user.Email {
+		var existing models.User
+		if err := h.DB.Where("email = ? AND id <> ?", *req.Email, userID).First(&existing).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
+			return
+		}
+		user.Email = *req.Email
+	}
+	if req.Name != nil {
+		user.Name = *req.Name
+	}
+
+	if err := h.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update account"})
+		return
+	}
+	c.JSON(http.StatusOK, dto.FromUser(user))
+}
+
+type updatePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required"`
+	NewPassword     string `json:"newPassword" binding:"required,min=8"`
+}
+
+func (h *AuthHandler) UpdatePassword(c *gin.Context) {
+	var user models.User
+	if err := h.DB.First(&user, "id = ?", auth.UserID(c)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	var req updatePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !auth.CheckPassword(user.PasswordHash, req.CurrentPassword) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "current password is incorrect"})
+		return
+	}
+
+	hash, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process password"})
+		return
+	}
+	user.PasswordHash = hash
+	if err := h.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}

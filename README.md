@@ -10,17 +10,22 @@ AI-powered HR platform for job seekers. A monorepo with two independently deploy
 Run the backend first (it owns auth, data, and business logic), then the frontend against it.
 
 ```bash
-# 1. Backend — needs a Postgres database, see Backend/README.md
+# 1. Postgres, via Docker Compose (local dev only — see docker-compose.yml)
+docker compose up -d
+
+# 2. Backend, in a second terminal
 cd Backend
 cp .env.example .env
 go run ./cmd/api          # listens on :8080
 
-# 2. Frontend, in a second terminal
+# 3. Frontend, in a third terminal
 cd Frontend
 cp .env.local.example .env.local
 npm install
 npm run dev                # listens on :3000
 ```
+
+If port 5432 is already taken locally, set `POSTGRES_PORT` (e.g. in a root `.env`) before `docker compose up -d`, and update `DATABASE_URL` in `Backend/.env` to match.
 
 Open [http://localhost:3000](http://localhost:3000). Sign up for an account — it creates a real user, JWT, and CV record in Postgres.
 
@@ -28,9 +33,10 @@ Open [http://localhost:3000](http://localhost:3000). Sign up for an account — 
 
 ```
 taela-ai/
-├── Frontend/     # Next.js app — see Frontend/README.md
-├── Backend/      # Go API — see Backend/README.md
-└── render.yaml   # Deploys both as separate Render services + a managed Postgres
+├── Frontend/            # Next.js app — see Frontend/README.md
+├── Backend/             # Go API — see Backend/README.md
+├── docker-compose.yml   # Local-dev-only Postgres (production uses a managed instance, see render.yaml)
+└── render.yaml          # Deploys both as separate Render services + a managed Postgres
 ```
 
 ## Deploying

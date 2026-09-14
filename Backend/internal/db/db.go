@@ -40,5 +40,6 @@ func AutoMigrate(gormDB *gorm.DB) error {
 		&models.ATSCheck{},
 		&models.MarketInsight{},
 		&models.Activity{},
+		&models.UserSettings{},
 	)
 }

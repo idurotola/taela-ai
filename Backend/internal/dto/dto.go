@@ -24,6 +24,22 @@ type AuthResponse struct {
 	User  UserDTO `json:"user"`
 }
 
+type UserSettingsDTO struct {
+	JobMatchAlerts     bool `json:"jobMatchAlerts"`
+	ApplicationUpdates bool `json:"applicationUpdates"`
+	WeeklyDigest       bool `json:"weeklyDigest"`
+	NetworkSuggestions bool `json:"networkSuggestions"`
+}
+
+func FromUserSettings(s models.UserSettings) UserSettingsDTO {
+	return UserSettingsDTO{
+		JobMatchAlerts:     s.JobMatchAlerts,
+		ApplicationUpdates: s.ApplicationUpdates,
+		WeeklyDigest:       s.WeeklyDigest,
+		NetworkSuggestions: s.NetworkSuggestions,
+	}
+}
+
 type JobDTO struct {
 	ID            string `json:"id"`
 	Title         string `json:"title"`

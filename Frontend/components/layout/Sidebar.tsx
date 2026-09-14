@@ -173,6 +173,7 @@ export default function Sidebar({ activeView, onNavigate, user, onSignOut }: Sid
           Account
         </div>
         <button
+          onClick={() => onNavigate('settings')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -180,8 +181,9 @@ export default function Sidebar({ activeView, onNavigate, user, onSignOut }: Sid
             padding: '10px 20px',
             width: '100%',
             border: '3px solid transparent',
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.5)',
+            borderLeft: activeView === 'settings' ? '3px solid #F5C535' : '3px solid transparent',
+            background: activeView === 'settings' ? 'rgba(245,197,53,0.08)' : 'transparent',
+            color: activeView === 'settings' ? '#fff' : 'rgba(255,255,255,0.5)',
             fontSize: 13,
             fontWeight: 600,
             cursor: 'pointer',

@@ -30,6 +30,7 @@ func New(db *gorm.DB, cfg config.Config) *gin.Engine {
 	insightsH := &handlers.InsightsHandler{DB: db}
 	dashH := &handlers.DashboardHandler{DB: db}
 	adminH := &handlers.AdminHandler{DB: db}
+	settingsH := &handlers.SettingsHandler{DB: db}
 
 	api := r.Group("/api")
 	{
@@ -48,6 +49,11 @@ func New(db *gorm.DB, cfg config.Config) *gin.Engine {
 		protected.Use(auth.RequireAuth(cfg.JWTSecret))
 		{
 			protected.GET("/auth/me", authH.Me)
+			protected.PATCH("/auth/me", authH.UpdateAccount)
+			protected.PUT("/auth/password", authH.UpdatePassword)
+
+			protected.GET("/settings", settingsH.Get)
+			protected.PUT("/settings", settingsH.Update)
 
 			protected.GET("/jobs", jobsH.List)
 			protected.POST("/jobs/:id/apply", jobsH.Apply)
