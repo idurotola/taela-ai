@@ -73,6 +73,10 @@ export const api = {
     request<User>('/api/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
   updatePassword: (data: { currentPassword: string; newPassword: string }) =>
     request<void>('/api/auth/password', { method: 'PUT', body: JSON.stringify(data) }),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<void>('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
 
   settings: () => request<UserSettings>('/api/settings'),
   updateSettings: (data: Partial<UserSettings>) =>

@@ -51,3 +51,6 @@ Backend/tmp/
 *.exe
 *.test
 *.out
+
+# make dev-up (logs for backgrounded Backend/Frontend processes)
+/.dev/

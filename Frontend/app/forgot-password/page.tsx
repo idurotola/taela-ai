@@ -1,0 +1,116 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { api, ApiError } from '@/lib/api';
+
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      // The backend always returns a generic success message here, whether
+      // or not the email is registered, so this never confirms an account's
+      // existence either way.
+      await api.forgotPassword(email);
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: '#F5EFE8', fontFamily: 'Nunito, sans-serif', padding: 24,
+    }}>
+      <Link href="/" style={{
+        fontWeight: 800, fontSize: 24, letterSpacing: '-0.5px',
+        textDecoration: 'none', color: '#1E4845', marginBottom: 32,
+      }}>
+        Taela<span style={{ color: '#F5C535' }}>AI</span>
+      </Link>
+
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: '40px 36px',
+        border: '1px solid #E4E4E4', width: '100%', maxWidth: 420,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+      }}>
+        {sent ? (
+          <>
+            <h1 style={{ fontWeight: 800, fontSize: 24, marginBottom: 6, letterSpacing: '-0.5px' }}>
+              Check your email
+            </h1>
+            <p style={{ color: '#6B6B6B', fontSize: 14, marginBottom: 0, lineHeight: 1.5 }}>
+              If an account exists for <strong>{email}</strong>, we&apos;ve sent a link to reset your password. It expires in 1 hour.
+            </p>
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#6B6B6B', marginTop: 24, marginBottom: 0 }}>
+              <Link href="/signin" style={{ fontWeight: 700, color: '#1E4845' }}>Back to sign in</Link>
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 style={{ fontWeight: 800, fontSize: 24, marginBottom: 6, letterSpacing: '-0.5px' }}>
+              Forgot your password?
+            </h1>
+            <p style={{ color: '#6B6B6B', fontSize: 14, marginBottom: 28 }}>
+              Enter your email and we&apos;ll send you a reset link
+            </p>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontWeight: 700, fontSize: 13, display: 'block', marginBottom: 6 }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  style={inputStyle}
+                />
+              </div>
+
+              {error && (
+                <div style={{ fontSize: 13, color: '#BA1F4F', background: '#FEE8EF', borderRadius: 8, padding: '8px 12px' }}>
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} style={{
+                marginTop: 8, padding: '12px', borderRadius: 10, fontWeight: 800,
+                fontSize: 15, background: '#1E4845', color: '#fff',
+                border: 'none', cursor: loading ? 'default' : 'pointer', fontFamily: 'Nunito, sans-serif',
+                boxShadow: '0 4px 16px rgba(30,72,69,0.28)', opacity: loading ? 0.7 : 1,
+              }}>
+                {loading ? 'Sending…' : 'Send reset link'}
+              </button>
+            </form>
+
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#6B6B6B', marginTop: 24 }}>
+              Remembered it after all?{' '}
+              <Link href="/signin" style={{ fontWeight: 700, color: '#1E4845' }}>Sign in</Link>
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 14px', borderRadius: 8,
+  border: '1.5px solid #E4E4E4', fontSize: 14,
+  fontFamily: 'Nunito, sans-serif', outline: 'none',
+  color: '#1A1A1A', background: '#fff',
+};

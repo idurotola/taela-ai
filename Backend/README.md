@@ -8,6 +8,7 @@ The API for TaelaAI: Go + [Gin](https://gin-gonic.com/) + [GORM](https://gorm.io
 - [GORM](https://gorm.io/) + `gorm.io/driver/postgres` (pgx under the hood)
 - JWT auth (`golang-jwt/jwt/v5`) + bcrypt password hashing
 - UUID primary keys, auto-migrated on boot
+- Outgoing email via Mailtrap's official SDK (`github.com/mailtrap/mailtrap-go`) — see [Email](#email)
 
 ## Quick start
 
@@ -42,6 +43,7 @@ Backend/
 │   ├── dto/                   # API request/response shapes, decoupled from storage
 │   ├── auth/                  # bcrypt hashing, JWT issue/parse, auth middleware
 │   ├── handlers/              # one file per resource group
+│   ├── email/                  # outbound email service (transactional + marketing) — see internal/email/README.md
 │   ├── router/                 # route table + CORS
 │   ├── seed/                   # idempotent seed data (contacts, insights)
 │   └── jobsync/                 # job feed fetch/parse/upsert + ticker (see below)
@@ -56,6 +58,8 @@ All routes are under `/api`. Protected routes require `Authorization: Bearer <to
 |---|---|---|---|
 | POST | `/api/auth/signup` | – | Create an account, returns `{ token, user }` |
 | POST | `/api/auth/signin` | – | Returns `{ token, user }` |
+| POST | `/api/auth/forgot-password` | – | Email a password reset link, if the address is registered (see below) |
+| POST | `/api/auth/reset-password` | – | Exchange a reset token for a new password |
 | GET | `/api/auth/me` | ✓ | Current user |
 | GET | `/api/jobs` | ✓ | Active job catalog, with `applied` flag per user |
 | POST | `/api/jobs/:id/apply` | ✓ | Create a tracker application from a job listing |
@@ -75,6 +79,7 @@ All routes are under `/api`. Protected routes require `Authorization: Bearer <to
 | GET | `/api/dashboard/summary` | ✓ | Stats, best matches, recent activity, pipeline |
 | GET | `/api/analytics/summary` | ✓ | Response/interview rate, platform + weekly stats, funnel |
 | POST | `/api/admin/jobs/sync` | admin token | Force an immediate job-feed sync (see below) |
+| POST | `/api/admin/email/marketing` | admin token | Send a one-off marketing email to an explicit recipient list (see [Email](#email)) |
 
 ## Job feed sync
 
@@ -85,10 +90,27 @@ The job catalog isn't hand-entered — it's synced from [MyJobMag's public RSS f
 - Jobs that disappear from a fetch (filled/expired) are marked `inactive` rather than deleted immediately, and only removed after being inactive for 30 days (`jobsync.StaleAfter`). `/api/jobs` only ever returns active jobs.
 - `POST /api/admin/jobs/sync` (requires an `X-Admin-Token: <ADMIN_TOKEN>` header) forces a sync on demand, on top of the automatic ticker — handy right after a deploy or for debugging.
 
+## Email
+
+`internal/email` is a small outbound email **service**, not just a Mailtrap client — handlers call `*email.Service` (e.g. `emailSvc.SendPasswordReset(...)`, `emailSvc.SendMarketing(...)`), and the service dispatches through whichever `email.Provider` it was built with. See [internal/email/README.md](internal/email/README.md) for the full breakdown and how to swap in Mailchimp, Mailjet, or anything else instead of Mailtrap.
+
+It covers two kinds of mail:
+
+- **Internal/transactional notifications** — currently the welcome email sent on signup and the password reset link sent by `POST /api/auth/forgot-password`. Named helpers for these live in `internal/email/templates.go`.
+- **Marketing email** — bulk/announcement sends, e.g. `POST /api/admin/email/marketing` (admin token required) takes `{ to: string[], subject, text?, html?, category? }` and fires it at that recipient list via `Service.SendMarketing`.
+
+The built-in provider is Mailtrap (`internal/email/providers/mailtrap`), over Mailtrap's official Go SDK (`github.com/mailtrap/mailtrap-go`) — configured via `EMAIL_PROVIDER` (default `mailtrap`) and `MAILTRAP_API_TOKEN`. Internal/transactional mail (`Kind: transactional`) goes out over Mailtrap's transactional host; marketing mail (`Kind: marketing`, e.g. `SendMarketing`) goes out over its bulk host — the two are routed automatically based on which `Service` method a caller used. Set `MAILTRAP_SANDBOX=true` (with `MAILTRAP_SANDBOX_ID` set to a Mailtrap Testing inbox ID) to capture every send — either kind — in that inbox instead of delivering it, for staging/CI. With `MAILTRAP_API_TOKEN` unset (the default), every send is logged to stdout instead of actually sent, so the whole flow — signup welcome email, password reset, marketing send — is testable without any credentials.
+
+### Password reset
+
+`POST /api/auth/forgot-password` takes `{ email }` and, if it matches an account, generates a random token, stores only its SHA-256 hash (in `password_reset_tokens`, alongside a 1-hour expiry), and emails a link to `${FRONTEND_URL}/reset-password?token=...`. The response is always the same generic message whether or not the address is registered, so the endpoint can't be used to enumerate accounts.
+
+`POST /api/auth/reset-password` takes `{ token, newPassword }`, and succeeds only for a token that's unexpired and not already used. On success every other outstanding reset token for that account is invalidated too, so an older emailed link stops working.
+
 ## Notes on the data model
 
 - `Job`, `Contact`, and `MarketInsight` are a shared, global catalog. `Contact`/`MarketInsight` are seeded once from `internal/seed`; `Job` is populated by `internal/jobsync` instead.
-- `Application`, `Connection`, `CV`, and `Activity` are per-user.
+- `Application`, `Connection`, `CV`, `Activity`, and `PasswordResetToken` are per-user.
 - The tracker only stores an application's *current* stage, not its full history, so the analytics conversion funnel approximates "reached stage X" as "current stage is X or later" (excluding rejected applications). Good enough for a funnel chart; not an audit log.
 - `Activity` rows are written by the handlers themselves (apply, move stage, connect, CV analyze) and power the dashboard's "Recent Updates" feed — there's no separate event bus.
 
@@ -102,5 +124,7 @@ Set these environment variables on the host:
 - `POSTGRES_DB` (default `taela_ai`), `POSTGRES_USER` (default `postgres`) — optional
 - `JWT_SECRET`, `ADMIN_TOKEN` — generate real random values for anything beyond local dev
 - `ALLOWED_ORIGINS` — comma-separated, should include your deployed frontend's origin
+- `FRONTEND_URL` — your deployed frontend's origin, used to build password reset links
+- `MAILTRAP_API_TOKEN` (plus `EMAIL_FROM_ADDRESS`/`EMAIL_FROM_NAME`) — a real Mailtrap API token, or all outgoing email (welcome, password reset, marketing) only gets logged, not actually sent. See [Email](#email).
 
 **Persistence:** mount a volume at `/var/lib/postgresql/data` (a Railway Volume, if deploying there) — without one, the database resets to empty on every redeploy since the container filesystem is otherwise ephemeral.

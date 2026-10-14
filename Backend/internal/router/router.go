@@ -7,10 +7,11 @@ import (
 
 	"taela-ai-backend/internal/auth"
 	"taela-ai-backend/internal/config"
+	"taela-ai-backend/internal/email"
 	"taela-ai-backend/internal/handlers"
 )
 
-func New(db *gorm.DB, cfg config.Config) *gin.Engine {
+func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -22,20 +23,22 @@ func New(db *gorm.DB, cfg config.Config) *gin.Engine {
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
-	authH := &handlers.AuthHandler{DB: db, JWTSecret: cfg.JWTSecret}
+	authH := &handlers.AuthHandler{DB: db, JWTSecret: cfg.JWTSecret, Email: emailSvc, FrontendURL: cfg.FrontendURL}
 	jobsH := &handlers.JobsHandler{DB: db}
 	appsH := &handlers.ApplicationsHandler{DB: db}
 	contactsH := &handlers.ContactsHandler{DB: db}
 	cvH := &handlers.CVHandler{DB: db}
 	insightsH := &handlers.InsightsHandler{DB: db}
 	dashH := &handlers.DashboardHandler{DB: db}
-	adminH := &handlers.AdminHandler{DB: db}
+	adminH := &handlers.AdminHandler{DB: db, Email: emailSvc}
 	settingsH := &handlers.SettingsHandler{DB: db}
 
 	api := r.Group("/api")
 	{
 		api.POST("/auth/signup", authH.Signup)
 		api.POST("/auth/signin", authH.Signin)
+		api.POST("/auth/forgot-password", authH.ForgotPassword)
+		api.POST("/auth/reset-password", authH.ResetPassword)
 		api.GET("/meta/keywords", handlers.Keywords)
 		api.GET("/insights", insightsH.List)
 
@@ -43,6 +46,7 @@ func New(db *gorm.DB, cfg config.Config) *gin.Engine {
 		admin.Use(auth.RequireAdmin(cfg.AdminToken))
 		{
 			admin.POST("/jobs/sync", adminH.SyncJobs)
+			admin.POST("/email/marketing", adminH.SendMarketingEmail)
 		}
 
 		protected := api.Group("")
