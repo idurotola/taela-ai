@@ -41,5 +41,6 @@ func AutoMigrate(gormDB *gorm.DB) error {
 		&models.MarketInsight{},
 		&models.Activity{},
 		&models.UserSettings{},
+		&models.PasswordResetToken{},
 	)
 }
