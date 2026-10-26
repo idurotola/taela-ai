@@ -12,7 +12,8 @@ export default defineRailway(() => {
       DATABASE_URL: ref(db, "DATABASE_URL"),
       JWT_SECRET: preserve(),
       ADMIN_TOKEN: preserve(),
-      ALLOWED_ORIGINS: preserve(),
+      ALLOWED_ORIGINS: "https://taela-ai.up.railway.app",
+      FRONTEND_URL: "https://taela-ai.up.railway.app",
     },
   });
 
@@ -21,7 +22,7 @@ export default defineRailway(() => {
     build: "npm run build",
     start: "npm start",
     env: {
-      NEXT_PUBLIC_API_URL: preserve(),
+      NEXT_PUBLIC_API_URL: "https://backend-production-7957.up.railway.app",
     },
   });
 

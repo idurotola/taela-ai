@@ -14,6 +14,8 @@ package email
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 )
 
 // Kind distinguishes internal/transactional mail from bulk marketing mail.
@@ -103,10 +105,24 @@ func (s *Service) Send(ctx context.Context, msg Message) error {
 			msg.From = s.DefaultFrom
 		}
 	}
+	log.Printf(
+		"[email] sending %s email (category: %s) to %s\nSubject: %s\n\n%s\n",
+		msg.Kind, msg.Category, recipientEmails(msg.To), msg.Subject, msg.Text,
+	)
+
 	if err := s.Provider.Send(ctx, msg); err != nil {
 		return fmt.Errorf("email: %w", err)
 	}
 	return nil
+}
+
+// recipientEmails formats a To list for logging, e.g. "a@x.com, b@y.com".
+func recipientEmails(to []Recipient) string {
+	emails := make([]string, 0, len(to))
+	for _, r := range to {
+		emails = append(emails, r.Email)
+	}
+	return strings.Join(emails, ", ")
 }
 
 // SendTransactional is a convenience wrapper for the common case of a
