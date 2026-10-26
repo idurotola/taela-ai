@@ -35,24 +35,23 @@ Open [http://localhost:3000](http://localhost:3000). Sign up for an account — 
 taela-ai/
 ├── Frontend/            # Next.js app — see Frontend/README.md
 ├── Backend/             # Go API — see Backend/README.md
-├── docker-compose.yml   # Local-dev-only Postgres (production uses a managed instance, see render.yaml)
-└── render.yaml          # Deploys both as separate Render services + a managed Postgres
+└── docker-compose.yml   # Local-dev-only Postgres (production uses a managed Railway database, see .railway/railway.ts)
 ```
 
 ## Deploying
 
 ### Railway
 
-Each half of the app is its own Railway service, configured by the `railway.toml` in its own directory:
+`.railway/railway.ts` declares the whole project as code: the `backend` service (Docker build from `Backend/Dockerfile`), the `frontend` service (Nixpacks build), and a managed Postgres database — the backend's `DATABASE_URL` is a reference to that database resource, not something set by hand.
 
-- **Backend** (`Backend/railway.toml`) — Docker build from `Backend/Dockerfile`. This container runs its own Postgres server alongside the API (see `Backend/README.md#deploying`), so there's no separate managed database to provision. Set the service's **root directory** to `Backend` in the Railway dashboard, attach a **Volume** at `/var/lib/postgresql/data` (required — without it the database resets on every redeploy), and set `POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_TOKEN`, and `ALLOWED_ORIGINS`.
-- **Frontend** (`Frontend/railway.toml`) — Nixpacks build (`npm ci && npm run build`, `npm start`). Set the service's root directory to `Frontend`, and set `NEXT_PUBLIC_API_URL` to the backend service's public Railway domain — Next.js inlines it at build time, so it must be set *before* the first build, not just at runtime.
+From the repo root, with the Railway CLI and the `railway` npm package (see `.railway/README.md`):
 
-Deploy the backend first, grab its public domain, then set that as the frontend's `NEXT_PUBLIC_API_URL` before its first build. Once the frontend has a domain too, update the backend's `ALLOWED_ORIGINS` to match it and redeploy.
+```bash
+railway config plan     # preview what would change — safe, no-op
+railway config apply    # apply it
+```
 
-### Render
-
-`render.yaml` at the repo root defines three resources: a managed Postgres database, the `taela-ai-backend` web service (Docker, built from `Backend/Dockerfile`), and the `taela-ai` frontend web service (Node, built from `Frontend/`). The frontend's `NEXT_PUBLIC_API_URL` and the backend's `ALLOWED_ORIGINS` are wired to each other's expected Render hostnames — double-check those two values if your service names end up different (e.g. because a name was already taken).
+Set `JWT_SECRET`, `ADMIN_TOKEN`, and `ALLOWED_ORIGINS` on the backend service, and `NEXT_PUBLIC_API_URL` on the frontend service, in the Railway dashboard. Deploy the backend first, grab its public domain, then set that as the frontend's `NEXT_PUBLIC_API_URL` before its first build — Next.js inlines it at build time, so it must be set before, not just at runtime. Once the frontend has a domain too, update the backend's `ALLOWED_ORIGINS` to match it and redeploy.
 
 ## Brand Tokens (CSS Variables)
 
