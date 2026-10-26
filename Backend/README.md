@@ -12,7 +12,7 @@ The API for TaelaAI: Go + [Gin](https://gin-gonic.com/) + [GORM](https://gorm.io
 
 ## Quick start
 
-Requires a Postgres database. Easiest local option is the `docker-compose.yml` at the repo root (dev-only — production uses a managed Postgres instance, see `render.yaml`):
+Requires a Postgres database. Easiest local option is the `docker-compose.yml` at the repo root (dev-only — production uses a managed Railway Postgres database, see `.railway/railway.ts`):
 
 ```bash
 cd ..                     # repo root
@@ -116,15 +116,13 @@ The built-in provider is Mailtrap (`internal/email/providers/mailtrap`), over Ma
 
 ## Deploying
 
-`Dockerfile` builds the API into a minimal Alpine image that also runs its own Postgres server in the same container (Postgres only listens on `localhost` — nothing outside the container talks to it directly). `docker-entrypoint.sh` initializes the data directory on first boot, starts Postgres, provisions the `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` role and database, derives `DATABASE_URL` itself, then execs the API, which listens on `$PORT` (default `8080`).
+`Dockerfile` builds the API into a minimal Alpine image — just the Go binary, nothing else. Postgres is a separate, Railway-managed database service (declared in `.railway/railway.ts` via `postgres(...)`), reached over `DATABASE_URL`, which the IaC graph wires from the database resource into the backend service automatically (`ref(db, "DATABASE_URL")`).
 
 Set these environment variables on the host:
 
-- `POSTGRES_PASSWORD` — required, no default (the container refuses to start without it)
-- `POSTGRES_DB` (default `taela_ai`), `POSTGRES_USER` (default `postgres`) — optional
 - `JWT_SECRET`, `ADMIN_TOKEN` — generate real random values for anything beyond local dev
 - `ALLOWED_ORIGINS` — comma-separated, should include your deployed frontend's origin
 - `FRONTEND_URL` — your deployed frontend's origin, used to build password reset links
 - `MAILTRAP_API_TOKEN` (plus `EMAIL_FROM_ADDRESS`/`EMAIL_FROM_NAME`) — a real Mailtrap API token, or all outgoing email (welcome, password reset, marketing) only gets logged, not actually sent. See [Email](#email).
 
-**Persistence:** mount a volume at `/var/lib/postgresql/data` (a Railway Volume, if deploying there) — without one, the database resets to empty on every redeploy since the container filesystem is otherwise ephemeral.
+`DATABASE_URL` does not need to be set manually — the Railway Postgres service's connection string is injected automatically by `.railway/railway.ts`.
