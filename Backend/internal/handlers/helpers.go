@@ -1,6 +1,11 @@
 package handlers
 
 import (
+	"context"
+	"log"
+	"strings"
+	"time"
+
 	"gorm.io/gorm"
 
 	"taela-ai-backend/internal/models"
@@ -57,4 +62,34 @@ func appliedJobIDSet(db *gorm.DB, userID string) map[string]bool {
 		}
 	}
 	return set
+}
+
+func savedJobIDSet(db *gorm.DB, userID string) map[string]bool {
+	var saved []models.SavedJob
+	db.Where("user_id = ?", userID).Find(&saved)
+	set := map[string]bool{}
+	for _, s := range saved {
+		set[s.JobID] = true
+	}
+	return set
+}
+
+// normalizeEmail makes addresses compare case-insensitively: "A@x.com" and
+// "a@x.com" are the same account.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// notify runs a best-effort side effect (an email) after the response is
+// decided. It uses its own context because the request's is cancelled as
+// soon as the response is written, and a failure is only logged: a flaky
+// mail provider must never fail an application or a stage change.
+func notify(what string, fn func(ctx context.Context) error) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := fn(ctx); err != nil {
+			log.Printf("notify %s failed: %v", what, err)
+		}
+	}()
 }

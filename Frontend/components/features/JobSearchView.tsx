@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Tag, { TagVariant } from '@/components/ui/Tag';
-import { getMatchColor, PLATFORM_COLORS } from '@/lib/utils';
+import { PLATFORM_COLORS } from '@/lib/utils';
+import ExternalApplyDialog from '@/components/features/ExternalApplyDialog';
 import { api } from '@/lib/api';
 import { JobListing } from '@/types';
-import { RefreshCw, Bookmark, Zap, ExternalLink } from 'lucide-react';
+import { RefreshCw, Bookmark, Zap, ExternalLink, Link2 } from 'lucide-react';
 
 const PLATFORM_DOT_COLOR: Record<string, string> = PLATFORM_COLORS;
 
@@ -22,9 +23,11 @@ export default function JobSearchView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [applying, setApplying] = useState<Set<string>>(new Set());
-  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [platform, setPlatform] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [externalJob, setExternalJob] = useState<JobListing | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchJobs = () =>
     api.jobs()
@@ -37,7 +40,14 @@ export default function JobSearchView() {
 
   const filtered = platform === 'All' ? jobs : jobs.filter(j => j.platform === platform);
 
-  const handleApply = async (id: string) => {
+  const handleApply = async (job: JobListing) => {
+    // External jobs are applied for on the source site: open the guided
+    // dialog (CV download + link out) instead of recording a fake "applied".
+    if (job.sourceType === 'external') {
+      setExternalJob(job);
+      return;
+    }
+    const id = job.id;
     setApplying(prev => new Set(prev).add(id));
     try {
       await api.applyToJob(id);
@@ -49,9 +59,35 @@ export default function JobSearchView() {
     }
   };
 
+  const handleCopyLink = async (job: JobListing) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/jobs/${job.slug}`);
+      setCopiedId(job.id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      // clipboard unavailable — the link is still reachable from the job page
+    }
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
     fetchJobs().finally(() => setRefreshing(false));
+  };
+
+  const handleToggleSave = async (job: JobListing) => {
+    setSavingId(job.id);
+    try {
+      if (job.saved) {
+        await api.unsaveJob(job.id);
+      } else {
+        await api.saveJob(job.id);
+      }
+      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, saved: !job.saved } : j));
+    } catch {
+      // leave it unmarked so the user can retry
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) return <div style={{ padding: 20, color: '#6B6B6B', fontSize: 13 }}>Loading jobs…</div>;
@@ -126,7 +162,8 @@ export default function JobSearchView() {
         {filtered.map((job: JobListing) => {
           const isApplied = !!job.applied;
           const isApplying = applying.has(job.id);
-          const isSaved = saved.has(job.id);
+          const isSaved = !!job.saved;
+          const isSaving = savingId === job.id;
           return (
             <div
               key={job.id}
@@ -168,6 +205,7 @@ export default function JobSearchView() {
                   {job.company}{job.location && ` · ${job.location}`}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {job.sourceType === 'external' && <Tag variant="blue">External</Tag>}
                   <Tag variant={TYPE_TAG[job.type] || 'grey'}>{job.type}</Tag>
                   {job.salary && <Tag variant="grey">{job.salary}</Tag>}
                   {job.industry && <Tag variant="blue">{job.industry}</Tag>}
@@ -196,6 +234,24 @@ export default function JobSearchView() {
                     {job.platform}
                   </span>
                   <span style={{ fontSize: 10, color: '#aaa' }}>{job.posted}</span>
+                  <a
+                    href={`/jobs/${job.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 10, fontWeight: 700, color: '#2878B5', textDecoration: 'none' }}
+                  >
+                    Job page
+                  </a>
+                  <button
+                    onClick={() => handleCopyLink(job)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700,
+                      color: '#2878B5', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+                      fontFamily: 'Nunito, sans-serif',
+                    }}
+                  >
+                    <Link2 size={10} /> {copiedId === job.id ? 'Copied!' : 'Copy link'}
+                  </button>
                   {job.sourceUrl && (
                     <a
                       href={job.sourceUrl}
@@ -219,8 +275,6 @@ export default function JobSearchView() {
 
               {/* Match + Actions */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: getMatchColor(job.matchScore) }}>{job.matchScore}%</div>
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', marginBottom: 8 }}>match</div>
                 {isApplied ? (
                   <div
                     style={{
@@ -235,19 +289,21 @@ export default function JobSearchView() {
                       borderRadius: 6,
                     }}
                   >
-                    ✓ Applied
+                    {job.sourceType === 'external' ? '✓ In tracker' : '✓ Applied'}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button
-                      onClick={() => setSaved(prev => { const n = new Set(prev); n.has(job.id) ? n.delete(job.id) : n.add(job.id); return n; })}
+                      onClick={() => handleToggleSave(job)}
+                      disabled={isSaving}
                       style={{
                         padding: '5px 8px',
                         border: '1.5px solid #E4E4E4',
                         borderRadius: 6,
                         background: isSaved ? '#FEF3B0' : '#fff',
-                        cursor: 'pointer',
+                        cursor: isSaving ? 'default' : 'pointer',
                         color: isSaved ? '#977411' : '#6B6B6B',
+                        opacity: isSaving ? 0.6 : 1,
                       }}
                     >
                       <Bookmark size={13} fill={isSaved ? '#977411' : 'none'} />
@@ -257,9 +313,9 @@ export default function JobSearchView() {
                       variant="primary"
                       icon={<Zap size={12} />}
                       disabled={isApplying}
-                      onClick={() => handleApply(job.id)}
+                      onClick={() => handleApply(job)}
                     >
-                      {isApplying ? 'Applying…' : 'Apply'}
+                      {isApplying ? 'Applying…' : job.sourceType === 'external' ? 'CV & apply' : 'Apply'}
                     </Button>
                   </div>
                 )}
@@ -268,6 +324,14 @@ export default function JobSearchView() {
           );
         })}
       </div>
+
+      {externalJob && (
+        <ExternalApplyDialog
+          job={externalJob}
+          onClose={() => setExternalJob(null)}
+          onPrepared={() => setJobs(prev => prev.map(j => j.id === externalJob.id ? { ...j, applied: true } : j))}
+        />
+      )}
     </div>
   );
 }

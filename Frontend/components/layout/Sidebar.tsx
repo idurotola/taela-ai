@@ -7,7 +7,6 @@ import {
   Search,
   KanbanSquare,
   BarChart2,
-  Users,
   Settings,
   Sparkles,
   LogOut,
@@ -17,17 +16,15 @@ interface NavItem {
   id: NavView;
   label: string;
   icon: React.ReactNode;
-  badge?: number;
   badgeColor?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
   { id: 'cv', label: 'CV Builder', icon: <FileText size={16} /> },
-  { id: 'jobs', label: 'Job Search', icon: <Search size={16} />, badge: 14, badgeColor: '#E83567' },
+  { id: 'jobs', label: 'Job Search', icon: <Search size={16} />, badgeColor: '#E83567' },
   { id: 'tracker', label: 'Applications', icon: <KanbanSquare size={16} /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart2 size={16} /> },
-  { id: 'network', label: 'Network', icon: <Users size={16} />, badge: 3, badgeColor: '#2878B5' },
 ];
 
 interface SidebarProps {
@@ -35,9 +32,11 @@ interface SidebarProps {
   onNavigate: (view: NavView) => void;
   user?: User | null;
   onSignOut?: () => void;
+  // Real counts, not the placeholder literals this used to ship with.
+  badgeCounts?: Partial<Record<NavView, number>>;
 }
 
-export default function Sidebar({ activeView, onNavigate, user, onSignOut }: SidebarProps) {
+export default function Sidebar({ activeView, onNavigate, user, onSignOut, badgeCounts }: SidebarProps) {
   const initials = user?.name
     ? user.name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]!.toUpperCase()).join('')
     : '—';
@@ -104,6 +103,7 @@ export default function Sidebar({ activeView, onNavigate, user, onSignOut }: Sid
 
         {NAV_ITEMS.map((item) => {
           const isActive = activeView === item.id;
+          const badge = badgeCounts?.[item.id];
           return (
             <button
               key={item.id}
@@ -140,7 +140,7 @@ export default function Sidebar({ activeView, onNavigate, user, onSignOut }: Sid
             >
               <span style={{ flexShrink: 0 }}>{item.icon}</span>
               <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge && (
+              {!!badge && (
                 <span
                   style={{
                     background: item.badgeColor,
@@ -151,7 +151,7 @@ export default function Sidebar({ activeView, onNavigate, user, onSignOut }: Sid
                     borderRadius: 20,
                   }}
                 >
-                  {item.badge}
+                  {badge}
                 </span>
               )}
             </button>

@@ -54,3 +54,6 @@ Backend/tmp/
 
 # make dev-up (logs for backgrounded Backend/Frontend processes)
 /.dev/
+
+# Local dev CV uploads (STORAGE_PROVIDER=local)
+/Backend/data/

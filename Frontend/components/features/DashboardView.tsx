@@ -6,9 +6,8 @@ import StatCard from '@/components/ui/StatCard';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import SectionHeader from '@/components/ui/SectionHeader';
-import { Check, Mail, Users, BarChart2, ArrowRight } from 'lucide-react';
+import { Check, Mail, BarChart2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { getMatchColor } from '@/lib/utils';
 
 interface DashboardProps {
   onNavigate: (view: NavView) => void;
@@ -17,7 +16,6 @@ interface DashboardProps {
 const ACTIVITY_ICON: Record<string, { icon: React.ReactNode; bg: string; color: string }> = {
   application: { icon: <Check size={14} />, bg: '#B3E8DC', color: '#1F7D65' },
   interview:   { icon: <Mail size={14} />,  bg: '#BAD9F3', color: '#1A5C8E' },
-  network:     { icon: <Users size={14} />, bg: '#FEF3B0', color: '#977411' },
   cv:          { icon: <BarChart2 size={14} />, bg: '#FBC4D5', color: '#BA1F4F' },
 };
 
@@ -49,7 +47,7 @@ export default function DashboardView({ onNavigate }: DashboardProps) {
       <div className="two-col" style={{ marginBottom: 16 }}>
         {/* Best Matches */}
         <Card>
-          <SectionHeader tag="Recommended Today" title="Best Job Matches" action={
+          <SectionHeader tag="Fresh Today" title="Latest Jobs" action={
             <Button size="sm" variant="outline" onClick={() => onNavigate('jobs')}>View All →</Button>
           } />
           {data.bestMatches.length === 0 && (
@@ -89,10 +87,7 @@ export default function DashboardView({ onNavigate }: DashboardProps) {
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A' }}>{job.title}</div>
                 <div style={{ fontSize: 11, color: '#6B6B6B' }}>{job.company}{job.location && ` · ${job.location}`}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: getMatchColor(job.matchScore) }}>{job.matchScore}%</div>
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B' }}>match</div>
-              </div>
+              <div style={{ textAlign: 'right', fontSize: 10, color: '#aaa' }}>{job.posted}</div>
             </div>
           ))}
         </Card>

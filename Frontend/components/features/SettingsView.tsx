@@ -33,7 +33,6 @@ const TOGGLES: { key: keyof UserSettings; label: string; description: string }[]
   { key: 'jobMatchAlerts', label: 'Job match alerts', description: 'Get notified when a new role matches your profile.' },
   { key: 'applicationUpdates', label: 'Application updates', description: 'Status changes on applications you’ve submitted.' },
   { key: 'weeklyDigest', label: 'Weekly digest', description: 'A weekly summary of your job search activity.' },
-  { key: 'networkSuggestions', label: 'Network suggestions', description: 'Suggested contacts who could refer you.' },
 ];
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {

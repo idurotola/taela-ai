@@ -6,9 +6,14 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"taela-ai-backend/internal/models"
 )
 
-const contextUserIDKey = "userID"
+const (
+	contextUserIDKey = "userID"
+	contextRoleKey   = "role"
+)
 
 // RequireAuth validates the Bearer token on the request and stores the
 // authenticated user's ID in the Gin context for handlers to read via UserID.
@@ -28,6 +33,7 @@ func RequireAuth(secret string) gin.HandlerFunc {
 		}
 
 		c.Set(contextUserIDKey, claims.UserID)
+		c.Set(contextRoleKey, claims.Role)
 		c.Next()
 	}
 }
@@ -37,6 +43,25 @@ func UserID(c *gin.Context) string {
 	v, _ := c.Get(contextUserIDKey)
 	id, _ := v.(string)
 	return id
+}
+
+// Role reads the authenticated user's role set by RequireAuth.
+func Role(c *gin.Context) string {
+	v, _ := c.Get(contextRoleKey)
+	role, _ := v.(string)
+	return role
+}
+
+// RequireRecruiter gates recruiter-only endpoints behind RequireAuth,
+// rejecting job-seeker tokens.
+func RequireRecruiter() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if Role(c) != models.RoleRecruiter {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "recruiter account required"})
+			return
+		}
+		c.Next()
+	}
 }
 
 // RequireAdmin gates operational endpoints (e.g. triggering a job sync)

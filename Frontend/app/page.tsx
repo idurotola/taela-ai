@@ -14,8 +14,8 @@ const FEATURES = [
   { icon: FileText,  bg: '#E8F3F1', color: TEAL,       title: 'AI CV Builder',         desc: 'ATS-optimised CVs tailored to each role in seconds.' },
   { icon: Briefcase, bg: '#EAF2FB', color: '#2878B5',  title: 'Multi-Platform Search', desc: 'LinkedIn, Indeed, Jobberman & more — one unified feed.' },
   { icon: Target,    bg: '#FDE8EF', color: '#E83567',  title: 'Application Tracker',   desc: 'Kanban board to track every stage from apply to offer.' },
-  { icon: BarChart2, bg: '#E6F5F1', color: '#2EAA8A',  title: 'Analytics',             desc: 'Response rates, interview ratios, and market insights.' },
-  { icon: Users,     bg: '#EAF2FB', color: '#2878B5',  title: 'Network & Referrals',   desc: 'Identify warm connections at your target companies.' },
+  { icon: BarChart2, bg: '#E6F5F1', color: '#2EAA8A',  title: 'Analytics',             desc: 'Response rates, interview ratios, and how your applications convert.' },
+  { icon: Users,     bg: '#EAF2FB', color: '#2878B5',  title: 'Hire on Taela',         desc: 'Recruiters post jobs, share a public link, and manage applicants.' },
   { icon: Zap,       bg: '#E8F3F1', color: TEAL,       title: 'Auto-Apply (Soon)',     desc: 'Let TaelaAI apply to matched roles while you sleep.' },
 ];
 
