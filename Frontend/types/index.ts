@@ -222,6 +222,28 @@ export interface GuestConfirmResult extends AuthResponse {
   alreadySent: boolean;
 }
 
+export interface JobMatch {
+  score: number;
+  coverage: number;
+  fit: number;
+  matched: string[];
+  missing: string[];
+  strengths: string[];
+  gaps: string[];
+  summary: string;
+  cached: boolean;
+  formatChecks: { label: string; status: 'ok' | 'warn' }[];
+}
+
+export interface TailoredCV {
+  content: CVContent;
+  coverLetter: string;
+  changes: string[];
+  cached: boolean;
+  /** The master CV changed after this was generated. */
+  stale: boolean;
+}
+
 export interface PublicJob {
   id: string;
   slug: string;

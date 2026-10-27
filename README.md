@@ -81,6 +81,10 @@ Every job has a public page at `/jobs/{slug}` (no login needed). There are two k
 - **Guests** can apply from a public job page with just a CV. The application is held until they confirm their email, then delivered, and a free account is created for them.
 - **Recruiters** must be verified before posting: employers confirm an email on their company's domain; independent recruiters are approved by an admin (`GET /api/admin/recruiters/pending`, `POST /api/admin/recruiters/:userId/verify`, with the `X-Admin-Token` header). Existing recruiters were grandfathered in as verified.
 
+## Job fit and tailoring
+
+For any open job a candidate can run **Check my fit** (score out of 100, the job's key terms found or missing in their CV, gaps, and ATS format checks on their uploaded file) and **Tailor my CV** (a rewritten CV plus a cover letter). Keyword matching is done by the server against the CV text rather than trusting the model, and tailored output is forced back to the original CV's employers, dates, identity, skills and figures, so it can reword and reorder but not invent. Results are cached per CV version, and each user gets 10 billable AI calls per UTC day (refunded if the provider fails). Set `AI_TAILOR_MODEL` to use a stronger model for rewriting than for scoring and parsing.
+
 ## Next steps to productionise further
 
 1. **CV AI** — Wire up a real LLM (e.g. the Claude API) for genuine ATS scoring & tailoring, in place of the current keyword-heuristic in `Backend/internal/handlers/cv.go`
