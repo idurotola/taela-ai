@@ -24,7 +24,7 @@ func openJobs(db *gorm.DB) *gorm.DB {
 
 func (h *JobsHandler) List(c *gin.Context) {
 	var jobs []models.Job
-	if err := openJobs(h.DB).Order("match_score desc").Find(&jobs).Error; err != nil {
+	if err := openJobs(h.DB).Order("published_at desc").Find(&jobs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load jobs"})
 		return
 	}
@@ -77,21 +77,64 @@ func (h *JobsHandler) Apply(c *gin.Context) {
 		return
 	}
 
+	// External jobs are applied for on the source site, so all we can honestly
+	// record is that the candidate has a CV ready ("prepared"); they confirm
+	// the submission themselves from the tracker. Direct jobs are applied for
+	// here and so start at "applied".
+	stage := "applied"
+	sourceURL := ""
+	if job.SourceType == models.SourceTypeExternal {
+		stage = models.StagePrepared
+		sourceURL = job.SourceURL
+	}
 	app := models.Application{
-		UserID:   userID,
-		JobID:    &job.ID,
-		Title:    job.Title,
-		Company:  job.Company,
-		Location: job.Location,
-		Platform: job.Platform,
-		Stage:    "applied",
+		UserID:    userID,
+		JobID:     &job.ID,
+		Title:     job.Title,
+		Company:   job.Company,
+		Location:  job.Location,
+		Platform:  job.Platform,
+		SourceURL: sourceURL,
+		Stage:     stage,
 	}
 	if err := h.DB.Create(&app).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to apply"})
 		return
 	}
 
-	logActivity(h.DB, userID, "application", "Applied to "+job.Title, job.Company+" · via "+job.Platform)
+	if stage == models.StagePrepared {
+		logActivity(h.DB, userID, "application", "Prepared CV for "+job.Title, job.Company+" · apply on "+job.Platform)
+	} else {
+		logActivity(h.DB, userID, "application", "Applied to "+job.Title, job.Company+" · via "+job.Platform)
+	}
 
 	c.JSON(http.StatusCreated, dto.FromApplication(app))
+}
+
+// PublicGet serves the job page without authentication, looked up by the
+// slug in the public URL. Closed postings are returned with open=false so
+// the page can explain instead of showing a 404; only missing ones 404.
+func (h *JobsHandler) PublicGet(c *gin.Context) {
+	var job models.Job
+	if err := h.DB.Where("slug = ?", c.Param("slug")).First(&job).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		return
+	}
+	c.JSON(http.StatusOK, dto.FromPublicJob(job))
+}
+
+// PublicIndex lists open recruiter-posted jobs' slugs for the sitemap.
+// External feed jobs are left out: Taela doesn't own that content, so it
+// isn't promoted to search engines.
+func (h *JobsHandler) PublicIndex(c *gin.Context) {
+	var jobs []models.Job
+	if err := openJobs(h.DB).Where("source_type = ?", models.SourceTypeDirect).Select("slug", "updated_at").Order("updated_at desc").Limit(5000).Find(&jobs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load jobs"})
+		return
+	}
+	refs := make([]dto.PublicJobRefDTO, 0, len(jobs))
+	for _, j := range jobs {
+		refs = append(refs, dto.PublicJobRefDTO{Slug: j.Slug, UpdatedAt: j.UpdatedAt.Format(time.RFC3339)})
+	}
+	c.JSON(http.StatusOK, refs)
 }

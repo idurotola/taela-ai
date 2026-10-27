@@ -11,13 +11,25 @@ type Application struct {
 	Company   string    `gorm:"not null" json:"company"`
 	Location  string    `json:"location"`
 	Platform  string    `json:"platform"`
-	Stage     string    `gorm:"not null;default:applied" json:"stage"` // applied, review, shortlisted, interviewing, offered, rejected
+	SourceURL string    `json:"sourceUrl,omitempty"`                   // external jobs: where to submit
+	Stage     string    `gorm:"not null;default:applied" json:"stage"` // prepared, applied, review, shortlisted, interviewing, offered, rejected
 	NextStep  string    `json:"nextStep,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-var ApplicationStages = []string{"applied", "review", "shortlisted", "interviewing", "offered", "rejected"}
+// StagePrepared marks an external job the candidate has gotten a CV ready
+// for but hasn't confirmed submitting on the source site yet — it is not an
+// application the employer has received, so it's excluded from "sent" stats.
+const StagePrepared = "prepared"
+
+var ApplicationStages = []string{StagePrepared, "applied", "review", "shortlisted", "interviewing", "offered", "rejected"}
+
+// IsValidRecruiterStage is the subset a recruiter can move a candidate to;
+// "prepared" only exists on the candidate's side.
+func IsValidRecruiterStage(stage string) bool {
+	return stage != StagePrepared && IsValidStage(stage)
+}
 
 func IsValidStage(stage string) bool {
 	for _, s := range ApplicationStages {

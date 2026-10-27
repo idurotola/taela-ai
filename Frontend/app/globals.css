@@ -85,7 +85,7 @@ body {
 .contact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .pipeline-row { display: flex; gap: 8px; align-items: center; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .kanban-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.kanban-grid  { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.kanban-grid  { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 
 @media (max-width: 768px) {
   .sidebar-desktop { display: none; }
@@ -95,7 +95,7 @@ body {
   .stats-grid  { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .two-col, .two-one-col, .cv-grid { grid-template-columns: 1fr; }
   .three-col, .contact-grid { grid-template-columns: repeat(2, 1fr); }
-  .kanban-grid { grid-template-columns: repeat(5, minmax(180px, 1fr)); }
+  .kanban-grid { grid-template-columns: repeat(6, minmax(180px, 1fr)); }
 }
 
 @media (max-width: 480px) {

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"gorm.io/gorm"
 
 	"taela-ai-backend/internal/models"
@@ -67,4 +69,10 @@ func savedJobIDSet(db *gorm.DB, userID string) map[string]bool {
 		set[s.JobID] = true
 	}
 	return set
+}
+
+// normalizeEmail makes addresses compare case-insensitively: "A@x.com" and
+// "a@x.com" are the same account.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
 }

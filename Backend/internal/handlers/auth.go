@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -39,8 +40,10 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		return
 	}
 
+	req.Email = normalizeEmail(req.Email)
+
 	var existing models.User
-	if err := h.DB.Where("email = ?", req.Email).First(&existing).Error; err == nil {
+	if err := h.DB.Where("lower(email) = ?", req.Email).First(&existing).Error; err == nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
 		return
 	}
@@ -53,6 +56,10 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 
 	user := models.User{Name: req.Name, Email: req.Email, PasswordHash: hash, Role: models.RoleJobSeeker}
 	if err := h.DB.Create(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create account"})
 		return
 	}
@@ -87,7 +94,7 @@ func (h *AuthHandler) Signin(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := h.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := h.DB.Where("lower(email) = ?", normalizeEmail(req.Email)).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 		return
 	}
@@ -138,13 +145,16 @@ func (h *AuthHandler) UpdateAccount(c *gin.Context) {
 		return
 	}
 
-	if req.Email != nil && *req.Email != user.Email {
-		var existing models.User
-		if err := h.DB.Where("email = ? AND id <> ?", *req.Email, userID).First(&existing).Error; err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
-			return
+	if req.Email != nil {
+		newEmail := normalizeEmail(*req.Email)
+		if newEmail != user.Email {
+			var existing models.User
+			if err := h.DB.Where("lower(email) = ? AND id <> ?", newEmail, userID).First(&existing).Error; err == nil {
+				c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
+				return
+			}
+			user.Email = newEmail
 		}
-		user.Email = *req.Email
 	}
 	if req.Name != nil {
 		user.Name = *req.Name
@@ -221,7 +231,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	const genericResponse = "If an account exists for that email, we've sent a password reset link."
 
 	var user models.User
-	if err := h.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := h.DB.Where("lower(email) = ?", normalizeEmail(req.Email)).First(&user).Error; err != nil {
 		// Don't reveal whether the address is registered.
 		c.JSON(http.StatusOK, gin.H{"message": genericResponse})
 		return

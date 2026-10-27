@@ -23,13 +23,13 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 	userID := auth.UserID(c)
 
 	var apps []models.Application
-	h.DB.Where("user_id = ?", userID).Find(&apps)
+	h.DB.Where("user_id = ? AND stage <> ?", userID, models.StagePrepared).Find(&apps)
 
 	var cv models.CV
 	h.DB.Where("user_id = ?", userID).First(&cv)
 
-	var contactCount int64
-	h.DB.Model(&models.Contact{}).Count(&contactCount)
+	var savedCount int64
+	h.DB.Model(&models.SavedJob{}).Where("user_id = ?", userID).Count(&savedCount)
 
 	total := len(apps)
 	interviews := countStage(apps, "interviewing") + countStage(apps, "offered")
@@ -38,11 +38,11 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 		{Label: "Applications Sent", Value: strconv.Itoa(total), Trend: "Live from your tracker", TrendUp: true, Accent: "yellow"},
 		{Label: "Interview Invites", Value: strconv.Itoa(interviews), Trend: fmt.Sprintf("%d%% of applications", pct(interviews, total)), TrendUp: true, Accent: "pink"},
 		{Label: "CV Score (ATS)", Value: strconv.Itoa(cv.Score) + "/100", Trend: "Run AI Tailor to improve", TrendUp: true, Accent: "teal"},
-		{Label: "Network Reach", Value: strconv.Itoa(int(contactCount)), Trend: "Suggested connections available", TrendUp: true, Accent: "blue"},
+		{Label: "Saved Jobs", Value: strconv.Itoa(int(savedCount)), Trend: "Bookmarked to revisit", TrendUp: true, Accent: "blue"},
 	}
 
 	var jobs []models.Job
-	h.DB.Where("active = ?", true).Order("match_score desc").Limit(3).Find(&jobs)
+	openJobs(h.DB).Order("published_at desc").Limit(3).Find(&jobs)
 	applied := appliedJobIDSet(h.DB, userID)
 	saved := savedJobIDSet(h.DB, userID)
 	bestMatches := make([]dto.JobDTO, 0, len(jobs))
@@ -74,7 +74,7 @@ func (h *DashboardHandler) Analytics(c *gin.Context) {
 	userID := auth.UserID(c)
 
 	var apps []models.Application
-	h.DB.Where("user_id = ?", userID).Find(&apps)
+	h.DB.Where("user_id = ? AND stage <> ?", userID, models.StagePrepared).Find(&apps)
 
 	total := len(apps)
 	responded, interviewing := 0, 0

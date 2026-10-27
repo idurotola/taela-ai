@@ -5,11 +5,13 @@ import { PLATFORM_COLORS } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { Application } from '@/types';
 import Button from '@/components/ui/Button';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ExternalLink } from 'lucide-react';
+import { downloadCvPdf } from '@/lib/cvExport';
 
 type Stage = Application['stage'];
 
 const STAGES: { id: Stage; label: string; color: string; bg: string }[] = [
+  { id: 'prepared',     label: 'Prepared',      color: '#2878B5', bg: '#E8F2FB' },
   { id: 'applied',      label: 'Applied',       color: '#6B6B6B', bg: '#F0F0F0' },
   { id: 'review',       label: 'Under Review',  color: '#2878B5', bg: '#E8F2FB' },
   { id: 'shortlisted',  label: 'Shortlisted',   color: '#977411', bg: '#FEF3B0' },
@@ -48,6 +50,18 @@ export default function TrackerView() {
       await api.updateApplication(id, { stage: newStage });
     } catch {
       // best-effort — a page refresh will resync with the server
+    }
+  };
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const downloadCv = async (id: string) => {
+    setDownloadingId(id);
+    try {
+      await downloadCvPdf(await api.cv());
+    } catch {
+      // best-effort — the CV Builder has the same export
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -117,7 +131,7 @@ export default function TrackerView() {
       >
         <div style={{ display: 'flex', overflowX: 'auto', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>{apps.length}</div>
+            <div style={{ fontSize: 22, fontWeight: 800 }}>{apps.filter(a => a.stage !== 'prepared').length}</div>
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B' }}>Total Applications</div>
           </div>
           <div style={{ width: 1, height: 36, background: '#E4E4E4' }} />
@@ -292,8 +306,33 @@ export default function TrackerView() {
                       Negotiate Offer
                     </Button>
                   )}
+                  {/* Prepared: the external application hasn't been sent yet */}
+                  {stage.id === 'prepared' && (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {app.sourceUrl && (
+                        <a
+                          href={app.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            padding: '5px 0', borderRadius: 5, background: '#F5C535', color: '#1A1A1A',
+                            fontSize: 11, fontWeight: 800, textDecoration: 'none',
+                          }}
+                        >
+                          Open posting <ExternalLink size={10} />
+                        </a>
+                      )}
+                      <Button size="sm" variant="outline" fullWidth disabled={downloadingId === app.id} style={{ fontSize: 11 }} onClick={() => downloadCv(app.id)}>
+                        {downloadingId === app.id ? 'Preparing…' : 'Download CV'}
+                      </Button>
+                      <Button size="sm" variant="teal" fullWidth style={{ fontSize: 11 }} onClick={() => moveApp(app.id, 'applied')}>
+                        I&rsquo;ve applied
+                      </Button>
+                    </div>
+                  )}
                   {/* Move stage */}
-                  {stage.id !== 'offered' && (
+                  {stage.id !== 'offered' && stage.id !== 'prepared' && (
                     <button
                       onClick={() => {
                         const idx = STAGES.findIndex(s => s.id === stage.id);

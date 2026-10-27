@@ -1,6 +1,9 @@
 package router
 
 import (
+	"log"
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -9,10 +12,20 @@ import (
 	"taela-ai-backend/internal/config"
 	"taela-ai-backend/internal/email"
 	"taela-ai-backend/internal/handlers"
+	"taela-ai-backend/internal/ratelimit"
 )
 
 func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 	r := gin.Default()
+
+	// The rate limiter keys on the client IP. By default gin trusts every
+	// proxy's X-Forwarded-For, which lets a client dodge the limit by
+	// spoofing it; set TRUSTED_PROXIES to the platform's proxy ranges.
+	if len(cfg.TrustedProxies) > 0 {
+		if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+			log.Fatalf("invalid TRUSTED_PROXIES: %v", err)
+		}
+	}
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.AllowedOrigins,
@@ -27,22 +40,28 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 	recruiterH := &handlers.RecruiterHandler{DB: db, Email: emailSvc, JWTSecret: cfg.JWTSecret}
 	jobsH := &handlers.JobsHandler{DB: db}
 	appsH := &handlers.ApplicationsHandler{DB: db}
-	contactsH := &handlers.ContactsHandler{DB: db}
 	cvH := &handlers.CVHandler{DB: db}
-	insightsH := &handlers.InsightsHandler{DB: db}
 	dashH := &handlers.DashboardHandler{DB: db}
 	adminH := &handlers.AdminHandler{DB: db, Email: emailSvc}
 	settingsH := &handlers.SettingsHandler{DB: db}
 
 	api := r.Group("/api")
 	{
-		api.POST("/auth/signup", authH.Signup)
-		api.POST("/auth/signin", authH.Signin)
-		api.POST("/auth/forgot-password", authH.ForgotPassword)
-		api.POST("/auth/reset-password", authH.ResetPassword)
-		api.POST("/recruiter/auth/signup", recruiterH.Signup)
+		// Unauthenticated endpoints that cost something (password hashing,
+		// outgoing email) or guard credentials get a tight per-IP budget.
+		authLimit := ratelimit.New(10, time.Minute).Middleware()
+		api.POST("/auth/signup", authLimit, authH.Signup)
+		api.POST("/auth/signin", authLimit, authH.Signin)
+		api.POST("/auth/forgot-password", authLimit, authH.ForgotPassword)
+		api.POST("/auth/reset-password", authLimit, authH.ResetPassword)
+		api.POST("/recruiter/auth/signup", authLimit, recruiterH.Signup)
 		api.GET("/meta/keywords", handlers.Keywords)
-		api.GET("/insights", insightsH.List)
+
+		// Public job pages: no login, so candidates (and search engines) can
+		// open a job from its shared URL.
+		publicLimit := ratelimit.New(120, time.Minute).Middleware()
+		api.GET("/public/jobs", publicLimit, jobsH.PublicIndex)
+		api.GET("/public/jobs/:slug", publicLimit, jobsH.PublicGet)
 
 		admin := api.Group("/admin")
 		admin.Use(auth.RequireAdmin(cfg.AdminToken))
@@ -70,9 +89,6 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 			protected.POST("/applications", appsH.Create)
 			protected.PATCH("/applications/:id", appsH.Update)
 			protected.DELETE("/applications/:id", appsH.Delete)
-
-			protected.GET("/contacts", contactsH.List)
-			protected.POST("/contacts/:id/connect", contactsH.Connect)
 
 			protected.GET("/cv", cvH.Get)
 			protected.PUT("/cv", cvH.Update)

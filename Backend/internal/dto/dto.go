@@ -56,6 +56,8 @@ type JobDTO struct {
 	LogoTextColor string `json:"logoTextColor"`
 	Posted        string `json:"posted"`
 	SourceURL     string `json:"sourceUrl,omitempty"`
+	SourceType    string `json:"sourceType"`
+	Slug          string `json:"slug"`
 	Applied       bool   `json:"applied"`
 	Saved         bool   `json:"saved"`
 }
@@ -66,7 +68,7 @@ func FromJob(j models.Job, applied, saved bool) JobDTO {
 		Type: j.Type, Salary: j.Salary, Platform: j.Platform, Industry: j.Industry,
 		MatchScore: j.MatchScore, LogoInitials: j.LogoInitials, LogoColor: j.LogoColor,
 		LogoTextColor: j.LogoTextColor, Posted: humanizeSince(j.PublishedAt),
-		SourceURL: j.SourceURL, Applied: applied, Saved: saved,
+		SourceURL: j.SourceURL, SourceType: j.SourceType, Slug: j.Slug, Applied: applied, Saved: saved,
 	}
 }
 
@@ -104,15 +106,16 @@ func plural(n int) string {
 }
 
 type ApplicationDTO struct {
-	ID       string `json:"id"`
-	JobID    string `json:"jobId,omitempty"`
-	Title    string `json:"title"`
-	Company  string `json:"company"`
-	Location string `json:"location"`
-	Platform string `json:"platform"`
-	Date     string `json:"date"`
-	Stage    string `json:"stage"`
-	NextStep string `json:"nextStep,omitempty"`
+	ID        string `json:"id"`
+	JobID     string `json:"jobId,omitempty"`
+	Title     string `json:"title"`
+	Company   string `json:"company"`
+	Location  string `json:"location"`
+	Platform  string `json:"platform"`
+	SourceURL string `json:"sourceUrl,omitempty"`
+	Date      string `json:"date"`
+	Stage     string `json:"stage"`
+	NextStep  string `json:"nextStep,omitempty"`
 }
 
 func FromApplication(a models.Application) ApplicationDTO {
@@ -122,27 +125,7 @@ func FromApplication(a models.Application) ApplicationDTO {
 	}
 	return ApplicationDTO{
 		ID: a.ID, JobID: jobID, Title: a.Title, Company: a.Company, Location: a.Location,
-		Platform: a.Platform, Date: a.CreatedAt.Format("Jan 2"), Stage: a.Stage, NextStep: a.NextStep,
-	}
-}
-
-type ContactDTO struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	Initials          string `json:"initials"`
-	Role              string `json:"role"`
-	Company           string `json:"company"`
-	MutualConnections int    `json:"mutualConnections"`
-	ReferralFit       string `json:"referralFit"`
-	AvatarColor       string `json:"avatarColor"`
-	Connected         bool   `json:"connected"`
-}
-
-func FromContact(ct models.Contact, connected bool) ContactDTO {
-	return ContactDTO{
-		ID: ct.ID, Name: ct.Name, Initials: ct.Initials, Role: ct.Role, Company: ct.Company,
-		MutualConnections: ct.MutualConnections, ReferralFit: ct.ReferralFit, AvatarColor: ct.AvatarColor,
-		Connected: connected,
+		Platform: a.Platform, SourceURL: a.SourceURL, Date: a.CreatedAt.Format("Jan 2"), Stage: a.Stage, NextStep: a.NextStep,
 	}
 }
 
@@ -193,17 +176,6 @@ func FromCV(cv models.CV) CVDTO {
 		TargetCompany: cv.TargetCompany, AutoTailor: cv.AutoTailor, JobDescription: cv.JobDescription,
 		Score: cv.Score, Experiences: exps, ATSChecks: checks,
 	}
-}
-
-type MarketInsightDTO struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Text   string `json:"text"`
-	Accent string `json:"accent"`
-}
-
-func FromInsight(i models.MarketInsight) MarketInsightDTO {
-	return MarketInsightDTO{ID: i.ID, Title: i.Title, Text: i.Text, Accent: i.Accent}
 }
 
 type ActivityDTO struct {
@@ -280,13 +252,14 @@ func FromRecruiterProfile(p models.RecruiterProfile) RecruiterProfileDTO {
 
 // RecruiterJobDTO is a recruiter's own view of a posting, with expiry/status.
 type RecruiterJobDTO struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Company     string `json:"company"`
-	Location    string `json:"location"`
-	Type        string `json:"type"`
-	Salary      string `json:"salary"`
-	Description string `json:"description"`
+	ID             string `json:"id"`
+	Slug           string `json:"slug"`
+	Title          string `json:"title"`
+	Company        string `json:"company"`
+	Location       string `json:"location"`
+	Type           string `json:"type"`
+	Salary         string `json:"salary"`
+	Description    string `json:"description"`
 	Status         string `json:"status"` // open, expired
 	ExpiresAt      string `json:"expiresAt"`
 	CreatedAt      string `json:"createdAt"`
@@ -303,7 +276,7 @@ func FromRecruiterJob(j models.Job, applicantCount int) RecruiterJobDTO {
 		expiresAt = j.ExpiresAt.Format(time.RFC3339)
 	}
 	return RecruiterJobDTO{
-		ID: j.ID, Title: j.Title, Company: j.Company, Location: j.Location,
+		ID: j.ID, Slug: j.Slug, Title: j.Title, Company: j.Company, Location: j.Location,
 		Type: j.Type, Salary: j.Salary, Description: j.Description,
 		Status: status, ExpiresAt: expiresAt, CreatedAt: j.CreatedAt.Format(time.RFC3339),
 		ApplicantCount: applicantCount,
@@ -325,4 +298,45 @@ func FromRecruiterApplicant(a models.Application, name, email string) RecruiterA
 		ID: a.ID, Name: name, Email: email, Stage: a.Stage,
 		AppliedAt: a.CreatedAt.Format(time.RFC3339),
 	}
+}
+
+// PublicJobDTO is what the unauthenticated job page needs: the full
+// description plus whether the posting is still open. Closed postings are
+// still returned so the page can say so instead of a bare 404.
+type PublicJobDTO struct {
+	ID          string `json:"id"`
+	Slug        string `json:"slug"`
+	Title       string `json:"title"`
+	Company     string `json:"company"`
+	Location    string `json:"location"`
+	Type        string `json:"type"`
+	Salary      string `json:"salary"`
+	Industry    string `json:"industry,omitempty"`
+	Description string `json:"description"`
+	Platform    string `json:"platform"`
+	SourceType  string `json:"sourceType"`
+	SourceURL   string `json:"sourceUrl,omitempty"`
+	PostedAt    string `json:"postedAt"`
+	ExpiresAt   string `json:"expiresAt,omitempty"`
+	Open        bool   `json:"open"`
+}
+
+func FromPublicJob(j models.Job) PublicJobDTO {
+	expires := ""
+	if j.ExpiresAt != nil {
+		expires = j.ExpiresAt.Format(time.RFC3339)
+	}
+	return PublicJobDTO{
+		ID: j.ID, Slug: j.Slug, Title: j.Title, Company: j.Company, Location: j.Location,
+		Type: j.Type, Salary: j.Salary, Industry: j.Industry, Description: j.Description,
+		Platform: j.Platform, SourceType: j.SourceType, SourceURL: j.SourceURL,
+		PostedAt: j.PublishedAt.Format(time.RFC3339), ExpiresAt: expires,
+		Open: j.IsOpenForApplications(),
+	}
+}
+
+// PublicJobRefDTO is the minimal row the sitemap needs.
+type PublicJobRefDTO struct {
+	Slug      string `json:"slug"`
+	UpdatedAt string `json:"updatedAt"`
 }

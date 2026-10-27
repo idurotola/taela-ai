@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, setToken, ApiError } from '@/lib/api';
+import { safeNextPath } from '@/lib/nav';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -19,7 +20,8 @@ export default function SignInPage() {
     try {
       const { token, user } = await api.signin(email, password);
       setToken(token);
-      router.push(user.role === 'recruiter' ? '/recruiter/dashboard' : '/dashboard');
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
+      router.push(next && user.role !== 'recruiter' ? next : user.role === 'recruiter' ? '/recruiter/dashboard' : '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
     } finally {

@@ -1,16 +1,29 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
 
+const (
+	devJWTSecret   = "dev-only-insecure-secret-change-me"
+	devAdminToken  = "dev-only-admin-token-change-me"
+	minSecretBytes = 32
+)
+
 type Config struct {
+	// Production is true when APP_ENV=production or the process runs on
+	// Railway (RAILWAY_ENVIRONMENT is set). In production, Validate refuses
+	// the built-in dev secrets.
+	Production bool
+
 	Port                   string
 	DatabaseURL            string
 	JWTSecret              string
 	AllowedOrigins         []string
+	TrustedProxies         []string // CIDRs/IPs whose X-Forwarded-For is believed; see ratelimit
 	AdminToken             string
 	JobSyncIntervalMinutes int
 	FrontendURL            string
@@ -33,10 +46,11 @@ type Config struct {
 
 func Load() Config {
 	cfg := Config{
+		Production:             os.Getenv("APP_ENV") == "production" || os.Getenv("RAILWAY_ENVIRONMENT") != "",
 		Port:                   getEnv("PORT", "8080"),
 		DatabaseURL:            getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/taela_ai?sslmode=disable"),
-		JWTSecret:              getEnv("JWT_SECRET", "dev-only-insecure-secret-change-me"),
-		AdminToken:             getEnv("ADMIN_TOKEN", "dev-only-admin-token-change-me"),
+		JWTSecret:              getEnv("JWT_SECRET", devJWTSecret),
+		AdminToken:             getEnv("ADMIN_TOKEN", devAdminToken),
 		JobSyncIntervalMinutes: getEnvInt("JOB_SYNC_INTERVAL_MINUTES", 30),
 		// Used to build the link inside password reset emails.
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
@@ -71,7 +85,29 @@ func Load() Config {
 		}
 	}
 
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			cfg.TrustedProxies = append(cfg.TrustedProxies, p)
+		}
+	}
+
 	return cfg
+}
+
+// Validate rejects configuration that is unsafe to run in production: the
+// built-in dev secrets (which would let anyone forge a token or call the
+// admin endpoints) or secrets too short to be real.
+func (c Config) Validate() error {
+	if !c.Production {
+		return nil
+	}
+	if c.JWTSecret == devJWTSecret || len(c.JWTSecret) < minSecretBytes {
+		return fmt.Errorf("JWT_SECRET must be set to a random value of at least %d characters in production (e.g. `openssl rand -base64 48`)", minSecretBytes)
+	}
+	if c.AdminToken == devAdminToken || len(c.AdminToken) < minSecretBytes {
+		return fmt.Errorf("ADMIN_TOKEN must be set to a random value of at least %d characters in production (e.g. `openssl rand -base64 32`)", minSecretBytes)
+	}
+	return nil
 }
 
 func getEnv(key, fallback string) string {

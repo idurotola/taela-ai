@@ -7,8 +7,7 @@ const VIEW_TITLES: Record<NavView, string> = {
   cv: 'CV Builder',
   jobs: 'Job Search',
   tracker: 'Application Tracker',
-  analytics: 'Analytics & Insights',
-  network: 'Network & Referrals',
+  analytics: 'Analytics',
   settings: 'Settings',
 };
 

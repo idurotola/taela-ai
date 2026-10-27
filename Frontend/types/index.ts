@@ -1,4 +1,4 @@
-export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'network' | 'settings';
+export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'settings';
 
 export interface StatCard {
   label: string;
@@ -17,12 +17,13 @@ export interface JobListing {
   salary: string;
   platform: 'LinkedIn' | 'Jobberman' | 'Indeed' | 'Glassdoor' | 'Direct' | 'MyJobMag';
   industry?: string;
-  matchScore: number;
   logoInitials: string;
   logoColor: string;
   logoTextColor: string;
   posted: string;
   sourceUrl?: string;
+  sourceType: 'direct' | 'external';
+  slug: string;
   applied?: boolean;
   saved?: boolean;
 }
@@ -33,34 +34,16 @@ export interface Application {
   company: string;
   location: string;
   platform: string;
+  sourceUrl?: string;
   date: string;
-  stage: 'applied' | 'review' | 'shortlisted' | 'interviewing' | 'offered' | 'rejected';
+  stage: 'prepared' | 'applied' | 'review' | 'shortlisted' | 'interviewing' | 'offered' | 'rejected';
   nextStep?: string;
-}
-
-export interface NetworkContact {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-  company: string;
-  mutualConnections: number;
-  referralFit: 'high' | 'medium' | 'low';
-  avatarColor: string;
-  connected?: boolean;
 }
 
 export interface ATSCheck {
   id?: string;
   label: string;
   status: 'ok' | 'warn' | 'bad';
-}
-
-export interface MarketInsight {
-  id?: string;
-  title: string;
-  text: string;
-  accent: 'yellow' | 'teal' | 'blue' | 'pink';
 }
 
 // --- Backend-driven types (TaelaAI API) ---
@@ -112,7 +95,7 @@ export interface CV {
 
 export interface Activity {
   id: string;
-  type: 'application' | 'interview' | 'network' | 'cv';
+  type: 'application' | 'interview' | 'cv';
   title: string;
   sub: string;
 }
@@ -167,6 +150,7 @@ export interface RecruiterProfile {
 
 export interface RecruiterJob {
   id: string;
+  slug: string;
   title: string;
   company: string;
   location: string;
@@ -183,6 +167,24 @@ export interface RecruiterApplicant {
   id: string;
   name: string;
   email: string;
-  stage: Application['stage'];
+  stage: Exclude<Application['stage'], 'prepared'>;
   appliedAt: string;
+}
+
+export interface PublicJob {
+  id: string;
+  slug: string;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  salary: string;
+  industry?: string;
+  description: string;
+  platform: string;
+  sourceType: 'direct' | 'external';
+  sourceUrl?: string;
+  postedAt: string;
+  expiresAt?: string;
+  open: boolean;
 }

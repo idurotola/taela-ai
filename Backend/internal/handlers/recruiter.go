@@ -39,8 +39,10 @@ func (h *RecruiterHandler) Signup(c *gin.Context) {
 		return
 	}
 
+	req.Email = normalizeEmail(req.Email)
+
 	var existing models.User
-	if err := h.DB.Where("email = ?", req.Email).First(&existing).Error; err == nil {
+	if err := h.DB.Where("lower(email) = ?", req.Email).First(&existing).Error; err == nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
 		return
 	}
@@ -53,6 +55,10 @@ func (h *RecruiterHandler) Signup(c *gin.Context) {
 
 	user := models.User{Name: req.Name, Email: req.Email, PasswordHash: hash, Role: models.RoleRecruiter}
 	if err := h.DB.Create(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			c.JSON(http.StatusConflict, gin.H{"error": "an account with this email already exists"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create account"})
 		return
 	}
@@ -188,7 +194,7 @@ func (h *RecruiterHandler) CreateJob(c *gin.Context) {
 		Title: req.Title, Company: req.Company, Location: req.Location,
 		Type: req.Type, Salary: req.Salary, Platform: "Direct", Description: req.Description,
 		MatchScore: 75, LogoInitials: initials, LogoColor: bg, LogoTextColor: fg,
-		PublishedAt: now, Source: "Direct", Active: true,
+		PublishedAt: now, Source: "Direct", SourceType: models.SourceTypeDirect, Active: true,
 		// SourceGUID is uniquely indexed; recruiter jobs have no feed GUID so need one anyway.
 		SourceGUID:  "direct:" + uuid.NewString(),
 		RecruiterID: &userID, ExpiresAt: &expiresAt,
@@ -363,7 +369,7 @@ func (h *RecruiterHandler) UpdateApplicantStage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if !models.IsValidStage(req.Stage) {
+	if !models.IsValidRecruiterStage(req.Stage) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid stage"})
 		return
 	}

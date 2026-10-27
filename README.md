@@ -51,7 +51,9 @@ railway config plan     # preview what would change — safe, no-op
 railway config apply    # apply it
 ```
 
-Set `JWT_SECRET`, `ADMIN_TOKEN`, and `ALLOWED_ORIGINS` on the backend service, and `NEXT_PUBLIC_API_URL` on the frontend service, in the Railway dashboard. Deploy the backend first, grab its public domain, then set that as the frontend's `NEXT_PUBLIC_API_URL` before its first build — Next.js inlines it at build time, so it must be set before, not just at runtime. Once the frontend has a domain too, update the backend's `ALLOWED_ORIGINS` to match it and redeploy.
+Set `JWT_SECRET`, `ADMIN_TOKEN`, and `ALLOWED_ORIGINS` on the backend service, and `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SITE_URL` (the frontend's public origin, used for canonical URLs and the sitemap on public job pages) on the frontend service, in the Railway dashboard.
+
+In production (`APP_ENV=production`, or any Railway deploy) the backend **refuses to start** unless `JWT_SECRET` and `ADMIN_TOKEN` are set to random values of at least 32 characters — generate them with `openssl rand -base64 48`. Also set `TRUSTED_PROXIES` to the platform proxy's IP ranges so the auth rate limiter sees real client IPs rather than a spoofable `X-Forwarded-For`. Deploy the backend first, grab its public domain, then set that as the frontend's `NEXT_PUBLIC_API_URL` before its first build — Next.js inlines it at build time, so it must be set before, not just at runtime. Once the frontend has a domain too, update the backend's `ALLOWED_ORIGINS` to match it and redeploy.
 
 ## Brand Tokens (CSS Variables)
 
@@ -62,6 +64,13 @@ Set `JWT_SECRET`, `ADMIN_TOKEN`, and `ALLOWED_ORIGINS` on the backend service, a
 | `--teal` | `#2EAA8A` | Success, Jade Teal |
 | `--blue` | `#2878B5` | Info, Steel Blue |
 | `--offblack` | `#1A1A1A` | Body text |
+
+## Jobs and applying
+
+Every job has a public page at `/jobs/{slug}` (no login needed). There are two kinds:
+
+- **Direct** — posted by a recruiter on Taela. Candidates apply on Taela; the page carries `JobPosting` structured data and is in the sitemap.
+- **External** — ingested from the MyJobMag feed. Taela can't submit these, so the candidate downloads their CV and continues to the source site; the job sits in their tracker as **Prepared** until they confirm they've applied. External pages are `noindex` and left out of the sitemap.
 
 ## Next steps to productionise further
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, setToken, ApiError } from '@/lib/api';
+import { safeNextPath } from '@/lib/nav';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function SignUpPage() {
     try {
       const { token } = await api.signup(name, email, password);
       setToken(token);
-      router.push('/dashboard');
+      router.push(safeNextPath(new URLSearchParams(window.location.search).get('next')) ?? '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
     } finally {

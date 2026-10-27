@@ -13,7 +13,6 @@ import (
 	"taela-ai-backend/internal/email/providers/mailtrap"
 	"taela-ai-backend/internal/jobsync"
 	"taela-ai-backend/internal/router"
-	"taela-ai-backend/internal/seed"
 )
 
 // buildEmailService is the one place that knows which concrete email
@@ -49,6 +48,9 @@ func main() {
 	_ = godotenv.Load() // no-op if .env doesn't exist (e.g. in production)
 
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid configuration: %v", err)
+	}
 
 	gormDB, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
@@ -57,10 +59,6 @@ func main() {
 
 	if err := db.AutoMigrate(gormDB); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
-	}
-
-	if err := seed.Run(gormDB); err != nil {
-		log.Fatalf("failed to seed database: %v", err)
 	}
 
 	// Populate the job catalog immediately on boot, then keep it fresh on an

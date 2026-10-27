@@ -8,7 +8,7 @@ import { api, getToken, clearToken, ApiError } from '@/lib/api';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
-import { Plus, RotateCcw, Pencil, Users } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Users, Link2, ExternalLink } from 'lucide-react';
 
 const TEAL = '#1E4845';
 const GREY = '#6B6B6B';
@@ -48,6 +48,25 @@ export default function RecruiterDashboardPage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const loadJobs = () => {
+    setLoading(true);
+    return api.recruiter.jobs()
+      .then(setJobs)
+      .catch(() => setError('Could not load your postings right now.'))
+      .finally(() => setLoading(false));
+  };
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyLink = async (job: RecruiterJob) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/jobs/${job.slug}`);
+      setCopiedId(job.id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      // clipboard unavailable — "View" still opens the public page
+    }
+  };
+
   useEffect(() => {
     if (!getToken()) {
       router.replace('/signin');
@@ -65,14 +84,6 @@ export default function RecruiterDashboardPage() {
       })
       .finally(() => setChecking(false));
   }, [router]);
-
-  const loadJobs = () => {
-    setLoading(true);
-    return api.recruiter.jobs()
-      .then(setJobs)
-      .catch(() => setError('Could not load your postings right now.'))
-      .finally(() => setLoading(false));
-  };
 
   const openCreate = () => {
     setForm(BLANK_FORM);
@@ -256,6 +267,12 @@ export default function RecruiterDashboardPage() {
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6 }}>
+                        <Button size="sm" variant="outline" icon={<Link2 size={12} />} onClick={() => copyLink(job)}>
+                          {copiedId === job.id ? 'Copied!' : 'Copy link'}
+                        </Button>
+                        <a href={`/jobs/${job.slug}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                          <Button size="sm" variant="outline" icon={<ExternalLink size={12} />}>View</Button>
+                        </a>
                         <Button size="sm" variant="outline" icon={<Pencil size={12} />} onClick={() => openEdit(job)}>Edit</Button>
                         {job.status === 'expired' && (
                           <Button

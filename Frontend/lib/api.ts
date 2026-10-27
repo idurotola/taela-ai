@@ -6,8 +6,6 @@ import type {
   DashboardSummary,
   AnalyticsSummary,
   JobListing,
-  MarketInsight,
-  NetworkContact,
   RecruiterApplicant,
   RecruiterJob,
   RecruiterProfile,
@@ -97,9 +95,6 @@ export const api = {
     request<Application>(`/api/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteApplication: (id: string) => request<void>(`/api/applications/${id}`, { method: 'DELETE' }),
 
-  contacts: () => request<NetworkContact[]>('/api/contacts'),
-  connectContact: (id: string) => request<NetworkContact>(`/api/contacts/${id}/connect`, { method: 'POST' }),
-
   cv: () => request<CV>('/api/cv'),
   updateCV: (data: Partial<Omit<CV, 'id' | 'score' | 'experiences' | 'atsChecks'>>) =>
     request<CV>('/api/cv', { method: 'PUT', body: JSON.stringify(data) }),
@@ -108,8 +103,6 @@ export const api = {
     request<CVExperience>('/api/cv/experiences', { method: 'POST', body: JSON.stringify(data) }),
   deleteCVExperience: (id: string) => request<void>(`/api/cv/experiences/${id}`, { method: 'DELETE' }),
   keywords: () => request<string[]>('/api/meta/keywords'),
-
-  insights: () => request<MarketInsight[]>('/api/insights'),
 
   dashboardSummary: () => request<DashboardSummary>('/api/dashboard/summary'),
   analyticsSummary: () => request<AnalyticsSummary>('/api/analytics/summary'),
