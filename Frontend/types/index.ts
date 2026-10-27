@@ -200,6 +200,8 @@ export interface RecruiterJob {
 
 export interface RecruiterApplicant {
   id: string;
+  jobId: string;
+  jobTitle: string;
   name: string;
   email: string;
   stage: Exclude<Application['stage'], 'prepared'>;

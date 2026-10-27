@@ -316,6 +316,8 @@ func FromRecruiterJob(j models.Job, applicantCount int) RecruiterJobDTO {
 // (RecruiterApplicantDetailDTO) adds the cover letter and CV.
 type RecruiterApplicantDTO struct {
 	ID        string `json:"id"`
+	JobID     string `json:"jobId"`
+	JobTitle  string `json:"jobTitle"`
 	Name      string `json:"name"`
 	Email     string `json:"email"`
 	Phone     string `json:"phone,omitempty"`
@@ -326,8 +328,12 @@ type RecruiterApplicantDTO struct {
 }
 
 func FromRecruiterApplicant(a models.Application, name, email string) RecruiterApplicantDTO {
+	jobID := ""
+	if a.JobID != nil {
+		jobID = *a.JobID
+	}
 	return RecruiterApplicantDTO{
-		ID: a.ID, Name: name, Email: email, Phone: a.Phone, Stage: a.Stage,
+		ID: a.ID, JobID: jobID, JobTitle: a.Title, Name: name, Email: email, Phone: a.Phone, Stage: a.Stage,
 		AppliedAt: a.CreatedAt.Format(time.RFC3339),
 		HasCV:     a.CVFileKey != "" || a.CVSnapshot != "",
 		Rating:    a.RecruiterRating,
@@ -336,7 +342,6 @@ func FromRecruiterApplicant(a models.Application, name, email string) RecruiterA
 
 type RecruiterApplicantDetailDTO struct {
 	RecruiterApplicantDTO
-	JobTitle    string          `json:"jobTitle"`
 	CoverLetter string          `json:"coverLetter"`
 	Notes       string          `json:"notes"`
 	CVFileName  string          `json:"cvFileName,omitempty"`
@@ -346,7 +351,7 @@ type RecruiterApplicantDetailDTO struct {
 func FromRecruiterApplicantDetail(a models.Application, name, email string) RecruiterApplicantDetailDTO {
 	d := RecruiterApplicantDetailDTO{
 		RecruiterApplicantDTO: FromRecruiterApplicant(a, name, email),
-		JobTitle:              a.Title, CoverLetter: a.CoverLetter, Notes: a.RecruiterNotes, CVFileName: a.CVFileName,
+		CoverLetter:           a.CoverLetter, Notes: a.RecruiterNotes, CVFileName: a.CVFileName,
 	}
 	if a.CVSnapshot != "" {
 		d.CV = json.RawMessage(a.CVSnapshot)

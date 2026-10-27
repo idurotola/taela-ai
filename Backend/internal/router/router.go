@@ -141,6 +141,7 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.
 			recruiterProtected.POST("/jobs", recruiterH.CreateJob)
 			recruiterProtected.PATCH("/jobs/:id", recruiterH.UpdateJob)
 			recruiterProtected.GET("/jobs/:id/applicants", recruiterH.ListApplicants)
+			recruiterProtected.GET("/applicants", recruiterH.AllApplicants)
 			recruiterProtected.GET("/applications/:id", recruiterH.GetApplicant)
 			recruiterProtected.GET("/applications/:id/cv-file", recruiterH.DownloadApplicantCV)
 			recruiterProtected.PATCH("/applications/:id", recruiterH.UpdateApplicantStage)

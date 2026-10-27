@@ -158,6 +158,7 @@ export const api = {
     request<GuestConfirmResult>('/api/public/applications/confirm', { method: 'POST', body: JSON.stringify({ token }) }),
 
   recruiter: {
+    allApplicants: () => request<RecruiterApplicant[]>('/api/recruiter/applicants'),
     applicant: (id: string) => request<RecruiterApplicantDetail>(`/api/recruiter/applications/${id}`),
     updateApplicant: (id: string, data: { stage?: string; notes?: string; rating?: number }) =>
       request<RecruiterApplicantDetail>(`/api/recruiter/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
