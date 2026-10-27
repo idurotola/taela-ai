@@ -51,7 +51,7 @@ export default function DashboardPage() {
     switch (activeView) {
       case 'dashboard':   return <DashboardView onNavigate={setActiveView} />;
       case 'cv':          return <CVBuilderView />;
-      case 'jobs':        return <JobSearchView />;
+      case 'jobs':        return <JobSearchView onNavigate={setActiveView} />;
       case 'tracker':     return <TrackerView />;
       case 'analytics':   return <AnalyticsView />;
       case 'settings':    return <SettingsView user={user} onUserUpdate={setUser} />;

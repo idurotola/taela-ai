@@ -8,7 +8,7 @@ import ExternalApplyDialog from '@/components/features/ExternalApplyDialog';
 import DirectApplyDialog from '@/components/features/DirectApplyDialog';
 import AtsMatch from '@/components/ui/AtsMatch';
 import { api } from '@/lib/api';
-import { JobListing } from '@/types';
+import { JobListing, NavView } from '@/types';
 import { RefreshCw, Bookmark, Zap, ExternalLink, Link2 } from 'lucide-react';
 
 const PLATFORM_DOT_COLOR: Record<string, string> = PLATFORM_COLORS;
@@ -20,7 +20,7 @@ const TYPE_TAG: Record<string, TagVariant> = {
   'Hybrid': 'blue',
 };
 
-export default function JobSearchView() {
+export default function JobSearchView({ onNavigate }: { onNavigate?: (view: NavView) => void } = {}) {
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -157,6 +157,15 @@ export default function JobSearchView() {
           {refreshing ? 'Refreshing…' : 'Refresh All'}
         </Button>
       </div>
+
+      {!hasMatches && jobs.length > 0 && (
+        <div style={{ background: '#FEF3B0', border: '1px solid #F5C535', borderRadius: 12, padding: '12px 16px', marginBottom: 14, fontSize: 13, lineHeight: 1.5, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 220 }}>
+            <strong>See how well you match every job.</strong> Add your experience or a summary to your Profile (or upload your CV) and each job will show its ATS match.
+          </span>
+          {onNavigate && <Button size="sm" variant="primary" onClick={() => onNavigate('cv')}>Go to Profile</Button>}
+        </div>
+      )}
 
       <div style={{ fontSize: 12, color: '#6B6B6B', marginBottom: 14 }}>
         Showing <strong style={{ color: '#1A1A1A' }}>{filtered.length} matches</strong>
