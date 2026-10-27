@@ -41,12 +41,14 @@ type Config struct {
 
 	// AI (internal/ai). AIProvider is "anthropic", "gemini" or "bedrock";
 	// blank disables AI features and CV upload falls back to manual entry.
-	AIProvider      string
-	AIModel         string
-	AIBaseURL       string // optional: an API gateway/proxy in front of the provider
-	AnthropicAPIKey string
-	GeminiAPIKey    string
-	AWSRegion       string // bedrock
+	AIProvider               string
+	AIModel                  string
+	AITailorModel            string // stronger model for CV rewriting; defaults to AIModel (or sonnet on anthropic)
+	AutoApplyIntervalMinutes int    // 0 turns the background auto-apply worker off
+	AIBaseURL                string // optional: an API gateway/proxy in front of the provider
+	AnthropicAPIKey          string
+	GeminiAPIKey             string
+	AWSRegion                string // bedrock
 
 	// File storage (internal/storage) for uploaded CVs. StorageProvider is
 	// "r2" or "local" (development only); blank means local outside
@@ -89,12 +91,14 @@ func Load() Config {
 		MarketingFromAddress: getEnv("MARKETING_FROM_ADDRESS", ""),
 		MarketingFromName:    getEnv("MARKETING_FROM_NAME", ""),
 
-		AIProvider:      strings.ToLower(getEnv("AI_PROVIDER", "")),
-		AIModel:         getEnv("AI_MODEL", ""),
-		AIBaseURL:       getEnv("AI_BASE_URL", ""),
-		AnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
-		GeminiAPIKey:    getEnv("GEMINI_API_KEY", ""),
-		AWSRegion:       getEnv("AWS_REGION", ""),
+		AIProvider:               strings.ToLower(getEnv("AI_PROVIDER", "")),
+		AIModel:                  getEnv("AI_MODEL", ""),
+		AITailorModel:            getEnv("AI_TAILOR_MODEL", ""),
+		AIBaseURL:                getEnv("AI_BASE_URL", ""),
+		AutoApplyIntervalMinutes: getEnvInt("AUTO_APPLY_INTERVAL_MINUTES", 15),
+		AnthropicAPIKey:          getEnv("ANTHROPIC_API_KEY", ""),
+		GeminiAPIKey:             getEnv("GEMINI_API_KEY", ""),
+		AWSRegion:                getEnv("AWS_REGION", ""),
 
 		StorageProvider: strings.ToLower(getEnv("STORAGE_PROVIDER", "")),
 		StorageLocalDir: getEnv("STORAGE_LOCAL_DIR", "./data/uploads"),

@@ -1,4 +1,4 @@
-export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'settings';
+export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'autoapply' | 'settings';
 
 export interface StatCard {
   label: string;
@@ -220,6 +220,53 @@ export interface GuestConfirmResult extends AuthResponse {
   company: string;
   newAccount: boolean;
   alreadySent: boolean;
+}
+
+export interface JobMatch {
+  score: number;
+  coverage: number;
+  fit: number;
+  matched: string[];
+  missing: string[];
+  strengths: string[];
+  gaps: string[];
+  summary: string;
+  cached: boolean;
+  formatChecks: { label: string; status: 'ok' | 'warn' }[];
+}
+
+export interface TailoredCV {
+  content: CVContent;
+  coverLetter: string;
+  changes: string[];
+  cached: boolean;
+  /** The master CV changed after this was generated. */
+  stale: boolean;
+}
+
+export interface AutoApplyRule {
+  enabled: boolean;
+  mode: 'review' | 'auto';
+  roles: string[];
+  locations: string[];
+  minScore: number;
+  maxPerDay: number;
+}
+
+export interface AutoApplyQueueItem {
+  id: string;
+  job: JobListing;
+  score: number;
+  summary: string;
+  createdAt: string;
+}
+
+export interface AutoApplyRunResult {
+  considered: number;
+  queued: number;
+  autoApplied: number;
+  belowMinimum: number;
+  budgetSpent: boolean;
 }
 
 export interface PublicJob {

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import ExternalApplyDialog from '@/components/features/ExternalApplyDialog';
+import JobFitPanel, { FitState } from '@/components/features/JobFitPanel';
 import { ApiError, api, clearToken, getToken } from '@/lib/api';
 import type { User } from '@/types';
 
@@ -30,6 +31,7 @@ export default function JobApplyPanel({ job }: Props) {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState('');
   const [cover, setCover] = useState('');
+  const [tailored, setTailored] = useState<FitState['tailored']>(null);
 
   useEffect(() => {
     // Both outcomes resolve asynchronously, so state is only set from callbacks.
@@ -58,7 +60,7 @@ export default function JobApplyPanel({ job }: Props) {
     setApplying(true);
     setError('');
     try {
-      await api.applyToJob(job.id, cover);
+      await api.applyToJob(job.id, { coverLetter: cover, useTailored: !!tailored });
       setApplied(true);
     } catch {
       setError('Could not submit your application right now. Please try again.');
@@ -134,6 +136,10 @@ export default function JobApplyPanel({ job }: Props) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ width: '100%' }}>
+            <JobFitPanel jobId={job.id} onChange={(f) => { setTailored(f.tailored); if (f.tailored) setCover(f.coverLetter); }} />
+          </div>
+          {tailored && <div style={{ fontSize: 12, color: '#1F7D65' }}>Your tailored CV and cover letter will be sent.</div>}
           <textarea
             value={cover}
             onChange={(e) => setCover(e.target.value)}

@@ -7,6 +7,7 @@ import { Download, ExternalLink, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import { downloadCvDocx, downloadCvPdf } from '@/lib/cvExport';
+import JobFitPanel, { FitState } from '@/components/features/JobFitPanel';
 import type { CV } from '@/types';
 
 export interface ExternalJobRef {
@@ -34,6 +35,7 @@ export default function ExternalApplyDialog({ job, onClose, onPrepared }: Props)
   const [cv, setCv] = useState<CV | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<'pdf' | 'docx' | null>(null);
+  const [tailored, setTailored] = useState<FitState['tailored']>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +58,11 @@ export default function ExternalApplyDialog({ job, onClose, onPrepared }: Props)
     if (!cv) return;
     setBusy(kind);
     try {
-      await (kind === 'pdf' ? downloadCvPdf(cv) : downloadCvDocx(cv));
+      // Send the job-tailored version when there is one.
+      const out: CV = tailored
+        ? { ...cv, ...tailored.content, experiences: tailored.content.experiences.map((e, i) => ({ id: `t${i}`, ...e })), education: tailored.content.education }
+        : cv;
+      await (kind === 'pdf' ? downloadCvPdf(out) : downloadCvDocx(out));
     } finally {
       setBusy(null);
     }
@@ -113,16 +119,20 @@ export default function ExternalApplyDialog({ job, onClose, onPrepared }: Props)
           </div>
         )}
 
+        <div style={{ marginBottom: 14 }}>
+          <JobFitPanel jobId={job.id} onChange={(f) => setTailored(f.tailored)} />
+        </div>
+
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <Button variant="outline" fullWidth disabled={!cv || busy !== null} icon={<Download size={13} />} onClick={() => download('pdf')}>
-            {busy === 'pdf' ? 'Preparing…' : 'CV (PDF)'}
+            {busy === 'pdf' ? 'Preparing…' : tailored ? 'Tailored CV (PDF)' : 'CV (PDF)'}
           </Button>
           <Button variant="outline" fullWidth disabled={!cv || busy !== null} icon={<Download size={13} />} onClick={() => download('docx')}>
-            {busy === 'docx' ? 'Preparing…' : 'CV (DOCX)'}
+            {busy === 'docx' ? 'Preparing…' : tailored ? 'Tailored CV (DOCX)' : 'CV (DOCX)'}
           </Button>
         </div>
         <div style={{ fontSize: 11, color: '#888', marginBottom: 16 }}>
-          This is your current CV. Tailoring it to this specific job is coming soon.
+          {tailored ? 'This CV is tailored to this job — review it before you send it.' : 'This is your current CV. Use “Check my fit” above to tailor it to this job.'}
         </div>
 
         {job.sourceUrl ? (

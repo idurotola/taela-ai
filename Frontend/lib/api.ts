@@ -5,6 +5,11 @@ import type {
   CVContent,
   CVExperience,
   CVUploadResult,
+  AutoApplyQueueItem,
+  AutoApplyRule,
+  AutoApplyRunResult,
+  JobMatch,
+  TailoredCV,
   GuestConfirmResult,
   RecruiterApplicantDetail,
   DashboardSummary,
@@ -106,8 +111,17 @@ export const api = {
     request<UserSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
   jobs: () => request<JobListing[]>('/api/jobs'),
-  applyToJob: (id: string, coverLetter?: string) =>
-    request<Application>(`/api/jobs/${id}/apply`, { method: 'POST', body: JSON.stringify({ coverLetter: coverLetter ?? '' }) }),
+  applyToJob: (id: string, opts: { coverLetter?: string; useTailored?: boolean } = {}) =>
+    request<Application>(`/api/jobs/${id}/apply`, { method: 'POST', body: JSON.stringify({ coverLetter: opts.coverLetter ?? '', useTailored: !!opts.useTailored }) }),
+  autoApplyRule: () => request<AutoApplyRule>('/api/auto-apply'),
+  saveAutoApplyRule: (rule: AutoApplyRule) => request<AutoApplyRule>('/api/auto-apply', { method: 'PUT', body: JSON.stringify(rule) }),
+  autoApplyQueue: () => request<AutoApplyQueueItem[]>('/api/auto-apply/queue'),
+  approveAutoApply: (id: string) => request<Application>(`/api/auto-apply/queue/${id}/approve`, { method: 'POST' }),
+  skipAutoApply: (id: string) => request<void>(`/api/auto-apply/queue/${id}/skip`, { method: 'POST' }),
+  runAutoApply: () => request<AutoApplyRunResult>('/api/auto-apply/run', { method: 'POST' }),
+  matchJob: (id: string) => request<JobMatch>(`/api/jobs/${id}/match`, { method: 'POST' }),
+  tailorJob: (id: string) => request<TailoredCV>(`/api/jobs/${id}/tailor`, { method: 'POST' }),
+  tailoredForJob: (id: string) => request<TailoredCV>(`/api/jobs/${id}/tailored`),
   saveJob: (id: string) => request<void>(`/api/jobs/${id}/save`, { method: 'POST' }),
   unsaveJob: (id: string) => request<void>(`/api/jobs/${id}/save`, { method: 'DELETE' }),
 
