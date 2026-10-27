@@ -17,6 +17,8 @@ interface Props {
   job: DirectJobRef;
   onClose: () => void;
   onApplied: () => void;
+  /** Called with the AI score when the candidate runs "Check my fit". */
+  onScore?: (score: number) => void;
 }
 
 /**
@@ -24,7 +26,7 @@ interface Props {
  * CV and cover letter to this job's listing, then send. Tailoring is part of
  * each job rather than a setting on the profile.
  */
-export default function DirectApplyDialog({ job, onClose, onApplied }: Props) {
+export default function DirectApplyDialog({ job, onClose, onApplied, onScore }: Props) {
   const [fit, setFit] = useState<FitState>({ tailored: null, coverLetter: '' });
   const [cover, setCover] = useState('');
   const [sending, setSending] = useState(false);
@@ -59,7 +61,7 @@ export default function DirectApplyDialog({ job, onClose, onApplied }: Props) {
         <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 16 }}>{job.company}</div>
 
         <div style={{ marginBottom: 14 }}>
-          <JobFitPanel jobId={job.id} onChange={setFit} />
+          <JobFitPanel jobId={job.id} onChange={setFit} onMatch={onScore} />
         </div>
 
         {!fit.tailored && (

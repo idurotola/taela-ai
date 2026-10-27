@@ -26,6 +26,9 @@ export interface JobListing {
   slug: string;
   applied?: boolean;
   saved?: boolean;
+  /** ATS match vs. the signed-in candidate's CV: 'ai' = a score they ran, 'estimate' = free keyword estimate. */
+  atsMatch?: number;
+  atsMatchSource?: 'ai' | 'estimate';
 }
 
 export interface Application {

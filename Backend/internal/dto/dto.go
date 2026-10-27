@@ -61,6 +61,11 @@ type JobDTO struct {
 	Slug          string `json:"slug"`
 	Applied       bool   `json:"applied"`
 	Saved         bool   `json:"saved"`
+	// ATS match against the signed-in candidate's CV: "ai" is the considered
+	// score they asked for; "estimate" is the free keyword estimate. Absent
+	// when the CV is empty.
+	AtsMatch       *int   `json:"atsMatch,omitempty"`
+	AtsMatchSource string `json:"atsMatchSource,omitempty"`
 }
 
 func FromJob(j models.Job, applied, saved bool) JobDTO {

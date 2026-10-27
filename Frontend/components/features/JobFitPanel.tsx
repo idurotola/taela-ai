@@ -15,6 +15,8 @@ export interface FitState {
 interface Props {
   jobId: string;
   onChange?: (state: FitState) => void;
+  /** Reports the AI score so a job list can swap its estimate for it. */
+  onMatch?: (score: number) => void;
 }
 
 function scoreColor(score: number) {
@@ -27,7 +29,7 @@ function scoreColor(score: number) {
  * letter. Tailoring only rewords what's already in the CV (the server enforces
  * that), and everything is shown for the candidate to review.
  */
-export default function JobFitPanel({ jobId, onChange }: Props) {
+export default function JobFitPanel({ jobId, onChange, onMatch }: Props) {
   const [match, setMatch] = useState<JobMatch | null>(null);
   const [tailored, setTailored] = useState<TailoredCV | null>(null);
   const [coverLetter, setCoverLetter] = useState('');
@@ -55,7 +57,9 @@ export default function JobFitPanel({ jobId, onChange }: Props) {
     setError('');
     try {
       if (kind === 'match') {
-        setMatch(await api.matchJob(jobId));
+        const m = await api.matchJob(jobId);
+        setMatch(m);
+        onMatch?.(m.score);
       } else {
         const t = await api.tailorJob(jobId);
         setTailored(t);

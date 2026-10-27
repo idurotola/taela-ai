@@ -6,6 +6,7 @@ import Tag, { TagVariant } from '@/components/ui/Tag';
 import { PLATFORM_COLORS } from '@/lib/utils';
 import ExternalApplyDialog from '@/components/features/ExternalApplyDialog';
 import DirectApplyDialog from '@/components/features/DirectApplyDialog';
+import AtsMatch from '@/components/ui/AtsMatch';
 import { api } from '@/lib/api';
 import { JobListing } from '@/types';
 import { RefreshCw, Bookmark, Zap, ExternalLink, Link2 } from 'lucide-react';
@@ -25,6 +26,7 @@ export default function JobSearchView() {
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [platform, setPlatform] = useState('All');
+  const [sort, setSort] = useState<'newest' | 'match'>('newest');
   const [refreshing, setRefreshing] = useState(false);
   const [externalJob, setExternalJob] = useState<JobListing | null>(null);
   const [directJob, setDirectJob] = useState<JobListing | null>(null);
@@ -39,7 +41,15 @@ export default function JobSearchView() {
     fetchJobs().finally(() => setLoading(false));
   }, []);
 
-  const filtered = platform === 'All' ? jobs : jobs.filter(j => j.platform === platform);
+  const byPlatform = platform === 'All' ? jobs : jobs.filter(j => j.platform === platform);
+  const hasMatches = jobs.some(j => j.atsMatch !== undefined);
+  // The server returns newest first; "best match" is a stable re-sort of that.
+  const filtered = sort === 'match' && hasMatches
+    ? [...byPlatform].sort((a, b) => (b.atsMatch ?? -1) - (a.atsMatch ?? -1))
+    : byPlatform;
+
+  const updateScore = (id: string, score: number) =>
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, atsMatch: score, atsMatchSource: 'ai' } : j));
 
   // Every job opens its own apply step, where the CV can be tailored to that
   // listing: external jobs get the download-and-continue dialog, Taela jobs
@@ -134,6 +144,14 @@ export default function JobSearchView() {
         ))}
 
         <div style={{ flex: 1 }} />
+
+        {hasMatches && (
+          <select value={sort} onChange={(e) => setSort(e.target.value as 'newest' | 'match')} aria-label="Sort jobs"
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid #E4E4E4', fontSize: 12, fontWeight: 700, fontFamily: 'Nunito, sans-serif', background: '#fff' }}>
+            <option value="newest">Newest first</option>
+            <option value="match">Best ATS match</option>
+          </select>
+        )}
 
         <Button size="sm" variant="outline" icon={<RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />} onClick={handleRefresh}>
           {refreshing ? 'Refreshing…' : 'Refresh All'}
@@ -264,6 +282,7 @@ export default function JobSearchView() {
 
               {/* Match + Actions */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ marginBottom: 8 }}><AtsMatch job={job} /></div>
                 {isApplied ? (
                   <div
                     style={{
@@ -317,6 +336,7 @@ export default function JobSearchView() {
         <DirectApplyDialog
           job={directJob}
           onClose={() => setDirectJob(null)}
+          onScore={(s) => updateScore(directJob.id, s)}
           onApplied={() => setJobs(prev => prev.map(j => j.id === directJob.id ? { ...j, applied: true } : j))}
         />
       )}
@@ -325,6 +345,7 @@ export default function JobSearchView() {
         <ExternalApplyDialog
           job={externalJob}
           onClose={() => setExternalJob(null)}
+          onScore={(s) => updateScore(externalJob.id, s)}
           onPrepared={() => setJobs(prev => prev.map(j => j.id === externalJob.id ? { ...j, applied: true } : j))}
         />
       )}

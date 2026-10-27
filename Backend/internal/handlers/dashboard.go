@@ -45,9 +45,12 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 	openJobs(h.DB).Order("published_at desc").Limit(3).Find(&jobs)
 	applied := appliedJobIDSet(h.DB, userID)
 	saved := savedJobIDSet(h.DB, userID)
+	scorer := newMatchAnnotator(h.DB, userID)
 	bestMatches := make([]dto.JobDTO, 0, len(jobs))
 	for _, j := range jobs {
-		bestMatches = append(bestMatches, dto.FromJob(j, applied[j.ID], saved[j.ID]))
+		d := dto.FromJob(j, applied[j.ID], saved[j.ID])
+		scorer.annotate(&d, j)
+		bestMatches = append(bestMatches, d)
 	}
 
 	var activities []models.Activity
