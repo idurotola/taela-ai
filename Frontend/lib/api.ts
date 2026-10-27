@@ -2,7 +2,11 @@ import type {
   Application,
   AuthResponse,
   CV,
+  CVContent,
   CVExperience,
+  CVUploadResult,
+  GuestConfirmResult,
+  RecruiterApplicantDetail,
   DashboardSummary,
   AnalyticsSummary,
   JobListing,
@@ -41,8 +45,10 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
+  // Multipart uploads must let the browser set the Content-Type (it adds the boundary).
+  const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isForm ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> | undefined),
   };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -62,6 +68,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Fetches an authenticated file and saves it with the browser's download dialog. */
+async function downloadFile(path: string, fallbackName: string) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new ApiError(res.status, 'Could not download the file.');
+  const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match?.[1] || fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export const api = {
@@ -84,7 +106,8 @@ export const api = {
     request<UserSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
   jobs: () => request<JobListing[]>('/api/jobs'),
-  applyToJob: (id: string) => request<Application>(`/api/jobs/${id}/apply`, { method: 'POST' }),
+  applyToJob: (id: string, coverLetter?: string) =>
+    request<Application>(`/api/jobs/${id}/apply`, { method: 'POST', body: JSON.stringify({ coverLetter: coverLetter ?? '' }) }),
   saveJob: (id: string) => request<void>(`/api/jobs/${id}/save`, { method: 'POST' }),
   unsaveJob: (id: string) => request<void>(`/api/jobs/${id}/save`, { method: 'DELETE' }),
 
@@ -98,6 +121,14 @@ export const api = {
   cv: () => request<CV>('/api/cv'),
   updateCV: (data: Partial<Omit<CV, 'id' | 'score' | 'experiences' | 'atsChecks'>>) =>
     request<CV>('/api/cv', { method: 'PUT', body: JSON.stringify(data) }),
+  saveCVContent: (data: CVContent) => request<CV>('/api/cv/content', { method: 'PUT', body: JSON.stringify(data) }),
+  uploadCV: (file: File) => {
+    const body = new FormData();
+    body.append('file', file);
+    return request<CVUploadResult>('/api/cv/upload', { method: 'POST', body });
+  },
+  downloadCVFile: () => downloadFile('/api/cv/file', 'CV'),
+  deleteCVFile: () => request<void>('/api/cv/file', { method: 'DELETE' }),
   analyzeCV: () => request<CV>('/api/cv/analyze', { method: 'POST' }),
   addCVExperience: (data: { role: string; company: string; dates: string; bullets: string[] }) =>
     request<CVExperience>('/api/cv/experiences', { method: 'POST', body: JSON.stringify(data) }),
@@ -107,7 +138,20 @@ export const api = {
   dashboardSummary: () => request<DashboardSummary>('/api/dashboard/summary'),
   analyticsSummary: () => request<AnalyticsSummary>('/api/analytics/summary'),
 
+  guestApply: (slug: string, form: FormData) =>
+    request<{ message: string }>(`/api/public/jobs/${encodeURIComponent(slug)}/apply`, { method: 'POST', body: form }),
+  confirmGuestApplication: (token: string) =>
+    request<GuestConfirmResult>('/api/public/applications/confirm', { method: 'POST', body: JSON.stringify({ token }) }),
+
   recruiter: {
+    applicant: (id: string) => request<RecruiterApplicantDetail>(`/api/recruiter/applications/${id}`),
+    updateApplicant: (id: string, data: { stage?: string; notes?: string; rating?: number }) =>
+      request<RecruiterApplicantDetail>(`/api/recruiter/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    downloadApplicantCV: (id: string) => downloadFile(`/api/recruiter/applications/${id}/cv-file`, 'CV'),
+    requestVerification: (workEmail?: string) =>
+      request<{ status: string; message?: string }>('/api/recruiter/verification/request', { method: 'POST', body: JSON.stringify({ workEmail: workEmail ?? '' }) }),
+    confirmVerification: (token: string) =>
+      request<{ status: string }>('/api/public/recruiter/verify', { method: 'POST', body: JSON.stringify({ token }) }),
     signup: (name: string, email: string, password: string) =>
       request<AuthResponse>('/api/recruiter/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
     profile: () => request<RecruiterProfile>('/api/recruiter/profile'),

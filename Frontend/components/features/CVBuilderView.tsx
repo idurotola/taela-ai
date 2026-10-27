@@ -7,8 +7,11 @@ import Tag, { TagVariant } from '@/components/ui/Tag';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { api, ApiError } from '@/lib/api';
 import { CV } from '@/types';
-import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy, Trash2 } from 'lucide-react';
+import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy, Trash2, Pencil } from 'lucide-react';
 import { buildCvText, downloadCvPdf, downloadCvDocx } from '@/lib/cvExport';
+import { toContent } from '@/lib/cvContent';
+import CVUploadCard from '@/components/features/CVUploadCard';
+import CVExtrasCard from '@/components/features/CVExtrasCard';
 
 const STATUS_ICON = {
   ok:   <Check size={14} color="#2EAA8A" />,
@@ -55,6 +58,9 @@ export default function CVBuilderView() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingDocx, setExportingDocx] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [editingExpId, setEditingExpId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ role: '', company: '', dates: '', bullets: '' });
+  const [savingExp, setSavingExp] = useState(false);
 
   useEffect(() => {
     Promise.all([api.cv(), api.keywords()])
@@ -159,6 +165,35 @@ export default function CVBuilderView() {
     }
   };
 
+  const startEditExperience = (exp: CV['experiences'][number]) => {
+    setEditingExpId(exp.id);
+    setEditForm({ role: exp.role, company: exp.company, dates: exp.dates, bullets: exp.bullets.join('\n') });
+  };
+
+  const saveEditedExperience = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.role.trim() && !editForm.company.trim()) {
+      setExpError('Role or company is required.');
+      return;
+    }
+    setSavingExp(true);
+    setExpError('');
+    try {
+      const content = toContent(cv);
+      content.experiences = cv.experiences.map((x) =>
+        x.id === editingExpId
+          ? { role: editForm.role, company: editForm.company, dates: editForm.dates, bullets: editForm.bullets.split('\n').map(b => b.trim()).filter(Boolean) }
+          : { role: x.role, company: x.company, dates: x.dates, bullets: x.bullets },
+      );
+      setCv(await api.saveCVContent(content));
+      setEditingExpId(null);
+    } catch (err) {
+      setExpError(err instanceof ApiError ? err.message : 'Failed to save experience.');
+    } finally {
+      setSavingExp(false);
+    }
+  };
+
   const handleDeleteExperience = async (id: string) => {
     if (!window.confirm('Remove this experience?')) return;
     setCv(prev => prev ? { ...prev, experiences: prev.experiences.filter(e => e.id !== id) } : prev);
@@ -183,6 +218,8 @@ export default function CVBuilderView() {
       <div className="cv-grid">
         {/* Left — Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <CVUploadCard cv={cv} onCvChange={setCv} />
+
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SectionHeader title="Personal Information" style={{ marginBottom: 0 }} />
@@ -327,7 +364,21 @@ export default function CVBuilderView() {
             {cv.experiences.length === 0 && (
               <div style={{ fontSize: 12, color: '#6B6B6B' }}>No experience added yet — click &quot;Add&quot; to build your work history.</div>
             )}
-            {cv.experiences.map((exp) => (
+            {cv.experiences.map((exp) => editingExpId === exp.id ? (
+              <form key={exp.id} onSubmit={saveEditedExperience} style={{ background: '#F6F6F6', borderRadius: 10, padding: 14, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="cv-fields">
+                  <input value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))} placeholder="Role" aria-label="Role" style={INPUT_STYLE} />
+                  <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} placeholder="Company" aria-label="Company" style={INPUT_STYLE} />
+                </div>
+                <input value={editForm.dates} onChange={e => setEditForm(f => ({ ...f, dates: e.target.value }))} placeholder="Jan 2022 – Present" aria-label="Dates" style={INPUT_STYLE} />
+                <textarea value={editForm.bullets} onChange={e => setEditForm(f => ({ ...f, bullets: e.target.value }))} rows={4} placeholder="One achievement per line" aria-label="Achievements" style={{ ...INPUT_STYLE, resize: 'vertical' }} />
+                {expError && <div style={{ fontSize: 12, color: '#BA1F4F' }}>{expError}</div>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button type="submit" size="sm" variant="primary" disabled={savingExp}>{savingExp ? 'Saving…' : 'Save'}</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditingExpId(null); setExpError(''); }}>Cancel</Button>
+                </div>
+              </form>
+            ) : (
               <div key={exp.id} style={{ borderBottom: '1px solid #F0F0F0', paddingBottom: 12, marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <div>
@@ -336,6 +387,13 @@ export default function CVBuilderView() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontSize: 11, color: '#6B6B6B', textAlign: 'right' }}>{exp.dates}</div>
+                    <button
+                      onClick={() => startEditExperience(exp)}
+                      aria-label="Edit experience"
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#aaa', padding: 2 }}
+                    >
+                      <Pencil size={13} />
+                    </button>
                     <button
                       onClick={() => handleDeleteExperience(exp.id)}
                       aria-label="Remove experience"
@@ -353,6 +411,8 @@ export default function CVBuilderView() {
               </div>
             ))}
           </Card>
+
+          <CVExtrasCard key={cv.id + (cv.education?.length ?? 0) + (cv.skills?.length ?? 0)} cv={cv} onCvChange={setCv} />
         </div>
 
         {/* Right — Score + Keywords */}

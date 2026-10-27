@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { RecruiterApplicant, RecruiterJob } from '@/types';
 import { api, getToken, clearToken, ApiError } from '@/lib/api';
 import Card from '@/components/ui/Card';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Star } from 'lucide-react';
+import ApplicantPanel from '@/components/features/ApplicantPanel';
 
 const GREY = '#6B6B6B';
 const BORDER = '#E4E4E4';
@@ -22,6 +23,7 @@ export default function ApplicantsView({ jobId }: { jobId: string }) {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -32,6 +34,9 @@ export default function ApplicantsView({ jobId }: { jobId: string }) {
       .then(([jobs, apps]) => {
         setJob(jobs.find(j => j.id === jobId) || null);
         setApplicants(apps);
+        // Email links deep-link to one applicant via ?open=<application id>.
+        const open = new URLSearchParams(window.location.search).get('open');
+        if (open && apps.some(a => a.id === open)) setOpenId(open);
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
@@ -53,7 +58,7 @@ export default function ApplicantsView({ jobId }: { jobId: string }) {
     setUpdatingId(applicantId);
     setActionError('');
     try {
-      const updated = await api.recruiter.updateApplicantStage(applicantId, stage);
+      const updated = await api.recruiter.updateApplicant(applicantId, { stage });
       setApplicants(prev => prev.map(a => (a.id === applicantId ? updated : a)));
     } catch {
       setActionError('Could not update this applicant right now.');
@@ -105,15 +110,24 @@ export default function ApplicantsView({ jobId }: { jobId: string }) {
                   <th style={thStyle}>Name</th>
                   <th style={thStyle}>Email</th>
                   <th style={thStyle}>Applied</th>
+                  <th style={thStyle}>Rating</th>
                   <th style={thStyle}>Stage</th>
                 </tr>
               </thead>
               <tbody>
                 {applicants.map(a => (
                   <tr key={a.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td style={tdStyle}><span style={{ fontWeight: 700 }}>{a.name}</span></td>
+                    <td style={tdStyle}>
+                      <button onClick={() => setOpenId(a.id)} style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontWeight: 800, color: '#2878B5', fontFamily: 'Nunito, sans-serif', fontSize: 13 }}>
+                        {a.name}
+                      </button>
+                      {a.hasCv && <span style={{ marginLeft: 6, fontSize: 10, color: GREY }}>CV</span>}
+                    </td>
                     <td style={tdStyle}>{a.email}</td>
                     <td style={tdStyle}>{new Date(a.appliedAt).toLocaleDateString()}</td>
+                    <td style={tdStyle}>
+                      {a.rating > 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700 }}><Star size={12} color="#F5C535" fill="#F5C535" />{a.rating}</span> : <span style={{ color: '#bbb' }}>—</span>}
+                    </td>
                     <td style={tdStyle}>
                       <select
                         value={a.stage}
@@ -133,6 +147,14 @@ export default function ApplicantsView({ jobId }: { jobId: string }) {
           </Card>
         )}
       </div>
+
+      {openId && (
+        <ApplicantPanel
+          applicantId={openId}
+          onClose={() => setOpenId(null)}
+          onChange={(u) => setApplicants(prev => prev.map(a => (a.id === u.id ? { ...a, stage: u.stage, rating: u.rating } : a)))}
+        />
+      )}
     </div>
   );
 }

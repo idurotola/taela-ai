@@ -75,6 +75,33 @@ export interface CVExperience {
   bullets: string[];
 }
 
+export interface CVEducation {
+  id?: string;
+  school: string;
+  degree: string;
+  dates: string;
+}
+
+/** What the server extracts from an uploaded file, or what a manual edit saves. */
+export interface CVContent {
+  fullName: string;
+  jobTitle: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+  summary: string;
+  skills: string[];
+  experiences: { role: string; company: string; dates: string; bullets: string[] }[];
+  education: CVEducation[];
+}
+
+export interface CVUploadResult {
+  cv: CV;
+  parsed: CVContent | null;
+  parseNote?: string;
+}
+
 export interface CV {
   id: string;
   fullName: string;
@@ -89,8 +116,12 @@ export interface CV {
   autoTailor: boolean;
   jobDescription: string;
   score: number;
+  skills: string[];
   experiences: CVExperience[];
+  education: CVEducation[];
   atsChecks: ATSCheck[];
+  sourceFileName?: string;
+  sourceFileSize?: number;
 }
 
 export interface Activity {
@@ -146,6 +177,7 @@ export interface RecruiterProfile {
   companyName?: string;
   companyWebsite?: string;
   industry?: string;
+  verificationStatus?: '' | 'unverified' | 'pending' | 'verified';
 }
 
 export interface RecruiterJob {
@@ -169,6 +201,25 @@ export interface RecruiterApplicant {
   email: string;
   stage: Exclude<Application['stage'], 'prepared'>;
   appliedAt: string;
+  phone?: string;
+  hasCv: boolean;
+  rating: number;
+}
+
+export interface RecruiterApplicantDetail extends RecruiterApplicant {
+  jobTitle: string;
+  coverLetter: string;
+  notes: string;
+  cvFileName?: string;
+  cv?: Partial<CV>;
+}
+
+export interface GuestConfirmResult extends AuthResponse {
+  jobSlug: string;
+  jobTitle: string;
+  company: string;
+  newAccount: boolean;
+  alreadySent: boolean;
 }
 
 export interface PublicJob {

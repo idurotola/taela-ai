@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { RecruiterJob } from '@/types';
+import { RecruiterJob, RecruiterProfile } from '@/types';
+import VerificationBanner from '@/components/features/VerificationBanner';
 import { api, getToken, clearToken, ApiError } from '@/lib/api';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -40,6 +41,7 @@ export default function RecruiterDashboardPage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [jobs, setJobs] = useState<RecruiterJob[]>([]);
+  const [profile, setProfile] = useState<RecruiterProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
@@ -73,7 +75,7 @@ export default function RecruiterDashboardPage() {
       return;
     }
     api.recruiter.profile()
-      .then(() => loadJobs())
+      .then((p) => { setProfile(p); return loadJobs(); })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
           clearToken();
@@ -154,6 +156,8 @@ export default function RecruiterDashboardPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#F0F0F0', fontFamily: 'Nunito, sans-serif', padding: '32px 24px' }}>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
+        {profile && <VerificationBanner profile={profile} onStatusChange={(status) => setProfile(p => p && { ...p, verificationStatus: status })} />}
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontWeight: 800, fontSize: 26, letterSpacing: '-0.5px', margin: 0 }}>My postings</h1>
@@ -161,7 +165,7 @@ export default function RecruiterDashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <Button variant="outline" size="md" onClick={handleSignOut}>Sign out</Button>
-            <Button variant="primary" size="md" icon={<Plus size={14} />} onClick={openCreate}>
+            <Button variant="primary" size="md" icon={<Plus size={14} />} onClick={openCreate} disabled={!!profile && !!profile.verificationStatus && profile.verificationStatus !== 'verified'}>
               {formMode === 'create' ? 'Close' : 'Post a job'}
             </Button>
           </div>

@@ -72,6 +72,15 @@ Every job has a public page at `/jobs/{slug}` (no login needed). There are two k
 - **Direct** — posted by a recruiter on Taela. Candidates apply on Taela; the page carries `JobPosting` structured data and is in the sitemap.
 - **External** — ingested from the MyJobMag feed. Taela can't submit these, so the candidate downloads their CV and continues to the source site; the job sits in their tracker as **Prepared** until they confirm they've applied. External pages are `noindex` and left out of the sitemap.
 
+## CVs, uploads and guest applications
+
+- **Upload:** candidates upload a PDF or DOCX (5 MB max, checked by content). The original is kept in file storage, and if an AI provider is configured the text is read into editable sections that the candidate reviews before saving. Nothing is overwritten without their say-so.
+- **Storage:** set `STORAGE_PROVIDER=r2` with the `R2_*` variables (Cloudflare R2 or any S3-compatible bucket). Without it, production disables uploads rather than writing to a disk that deploys wipe. `STORAGE_PROVIDER=local` is for development only.
+- **AI:** `AI_PROVIDER` is `anthropic`, `gemini` or `bedrock` (see `Backend/.env.example`). Each user gets 5 automatic reads per day. CV text is sent to the chosen provider, so say so in your privacy policy.
+- **Applications** freeze a copy of the CV and file at the moment of applying, so later edits don't change what a recruiter already received.
+- **Guests** can apply from a public job page with just a CV. The application is held until they confirm their email, then delivered, and a free account is created for them.
+- **Recruiters** must be verified before posting: employers confirm an email on their company's domain; independent recruiters are approved by an admin (`GET /api/admin/recruiters/pending`, `POST /api/admin/recruiters/:userId/verify`, with the `X-Admin-Token` header). Existing recruiters were grandfathered in as verified.
+
 ## Next steps to productionise further
 
 1. **CV AI** — Wire up a real LLM (e.g. the Claude API) for genuine ATS scoring & tailoring, in place of the current keyword-heuristic in `Backend/internal/handlers/cv.go`
