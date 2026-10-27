@@ -125,3 +125,15 @@ func (s *Service) SendRecruiterVerification(ctx context.Context, to Recipient, c
 		[]string{fmt.Sprintf("Confirm this is your work address to verify %s on TaelaAI. Once verified you can publish jobs. The link expires in 48 hours.", company)},
 		"Verify my company", link)
 }
+
+// SendAutoApplyDigest tells a candidate that new jobs matching their
+// auto-apply rule are waiting for their approval.
+func (s *Service) SendAutoApplyDigest(ctx context.Context, to Recipient, n int, link string) error {
+	noun := "jobs"
+	if n == 1 {
+		noun = "job"
+	}
+	return s.simpleMail(ctx, to, fmt.Sprintf("%d new %s match your auto-apply rules", n, noun), "auto-apply-digest",
+		[]string{fmt.Sprintf("We found %d new %s that fit your auto-apply rules. Nothing has been sent — review and approve the ones you want.", n, noun)},
+		"Review matches", link)
+}

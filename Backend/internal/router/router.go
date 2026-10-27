@@ -45,6 +45,10 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.
 	appsH := &handlers.ApplicationsHandler{DB: db}
 	cvH := &handlers.CVHandler{DB: db, Store: store, AI: aiProvider}
 	matchH := &handlers.MatchHandler{DB: db, Store: store, Fast: aiProvider, Strong: strongAI}
+	autoH := &handlers.AutoApplyHandler{DB: db, Jobs: jobsH, Fast: aiProvider, Email: emailSvc, FrontendURL: cfg.FrontendURL}
+	if cfg.AutoApplyIntervalMinutes > 0 {
+		autoH.StartWorker(time.Duration(cfg.AutoApplyIntervalMinutes) * time.Minute)
+	}
 	dashH := &handlers.DashboardHandler{DB: db}
 	adminH := &handlers.AdminHandler{DB: db, Email: emailSvc}
 	settingsH := &handlers.SettingsHandler{DB: db}
@@ -63,6 +67,7 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.
 
 		// Public job pages: no login, so candidates (and search engines) can
 		// open a job from its shared URL.
+		runLimit := ratelimit.New(3, time.Minute).Middleware()
 		publicLimit := ratelimit.New(120, time.Minute).Middleware()
 		api.GET("/public/jobs", publicLimit, jobsH.PublicIndex)
 		api.GET("/public/jobs/:slug", publicLimit, jobsH.PublicGet)
@@ -98,6 +103,13 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.
 			protected.POST("/jobs/:id/match", matchH.Match)
 			protected.POST("/jobs/:id/tailor", matchH.Tailor)
 			protected.GET("/jobs/:id/tailored", matchH.GetTailored)
+
+			protected.GET("/auto-apply", autoH.GetRule)
+			protected.PUT("/auto-apply", autoH.PutRule)
+			protected.GET("/auto-apply/queue", autoH.Queue)
+			protected.POST("/auto-apply/queue/:id/approve", autoH.Approve)
+			protected.POST("/auto-apply/queue/:id/skip", autoH.Skip)
+			protected.POST("/auto-apply/run", runLimit, autoH.RunNow)
 			protected.POST("/jobs/:id/save", jobsH.Save)
 			protected.DELETE("/jobs/:id/save", jobsH.Unsave)
 

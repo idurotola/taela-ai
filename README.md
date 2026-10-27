@@ -85,6 +85,10 @@ Every job has a public page at `/jobs/{slug}` (no login needed). There are two k
 
 For any open job a candidate can run **Check my fit** (score out of 100, the job's key terms found or missing in their CV, gaps, and ATS format checks on their uploaded file) and **Tailor my CV** (a rewritten CV plus a cover letter). Keyword matching is done by the server against the CV text rather than trusting the model, and tailored output is forced back to the original CV's employers, dates, identity, skills and figures, so it can reword and reorder but not invent. Results are cached per CV version, and each user gets 10 billable AI calls per UTC day (refunded if the provider fails). Set `AI_TAILOR_MODEL` to use a stronger model for rewriting than for scoring and parsing.
 
+## Auto-apply
+
+Auto-apply is opt-in and covers **jobs recruiters post on Taela** (external feed jobs can't be applied for on a user's behalf). A user sets title/location filters and a minimum fit score; a background worker (`AUTO_APPLY_INTERVAL_MINUTES`, default 15, `0` = off) scores each new matching job against their CV and either queues it for approval (default) or applies automatically up to a daily cap, sending the saved CV with no AI-written text. Each job is considered once per user, scoring shares the daily AI allowance, and a Postgres advisory lock keeps multiple API instances from running the same pass.
+
 ## Next steps to productionise further
 
 1. **CV AI** — Wire up a real LLM (e.g. the Claude API) for genuine ATS scoring & tailoring, in place of the current keyword-heuristic in `Backend/internal/handlers/cv.go`

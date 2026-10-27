@@ -79,18 +79,36 @@ func (h *JobsHandler) Unsave(c *gin.Context) {
 
 func (h *JobsHandler) Apply(c *gin.Context) {
 	userID := auth.UserID(c)
-	jobID := c.Param("id")
 
 	var job models.Job
-	if err := openJobs(h.DB).First(&job, "id = ?", jobID).Error; err != nil {
+	if err := openJobs(h.DB).First(&job, "id = ?", c.Param("id")).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "job not found or no longer active"})
 		return
 	}
 
-	var existing models.Application
-	if err := h.DB.Where("user_id = ? AND job_id = ?", userID, jobID).First(&existing).Error; err == nil {
-		c.JSON(http.StatusOK, dto.FromApplication(existing))
+	// An optional cover letter rides along as JSON; an empty body is fine.
+	var req applyRequest
+	_ = c.ShouldBindJSON(&req)
+
+	app, created, err := h.createApplication(c.Request.Context(), userID, job, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to apply"})
 		return
+	}
+	if !created {
+		c.JSON(http.StatusOK, dto.FromApplication(app))
+		return
+	}
+	c.JSON(http.StatusCreated, dto.FromApplication(app))
+}
+
+// createApplication is the one place an application is made, shared by the
+// apply endpoint, the auto-apply approval queue and the auto-apply worker.
+// It is idempotent: if the user already has an application for the job, that
+// one is returned with created=false and nothing is sent twice.
+func (h *JobsHandler) createApplication(ctx context.Context, userID string, job models.Job, req applyRequest) (app models.Application, created bool, err error) {
+	if err := h.DB.Where("user_id = ? AND job_id = ?", userID, job.ID).First(&app).Error; err == nil {
+		return app, false, nil
 	}
 
 	// External jobs are applied for on the source site, so all we can honestly
@@ -103,14 +121,11 @@ func (h *JobsHandler) Apply(c *gin.Context) {
 		stage = models.StagePrepared
 		sourceURL = job.SourceURL
 	}
-	// An optional cover letter rides along as JSON; an empty body is fine.
-	var req applyRequest
-	_ = c.ShouldBindJSON(&req)
 	if len(req.CoverLetter) > 5000 {
 		req.CoverLetter = req.CoverLetter[:5000]
 	}
 
-	app := models.Application{
+	app = models.Application{
 		Base:      models.Base{ID: uuid.NewString()},
 		UserID:    userID,
 		JobID:     &job.ID,
@@ -137,25 +152,20 @@ func (h *JobsHandler) Apply(c *gin.Context) {
 			}
 		}
 		if !sent {
-			freezeCV(c.Request.Context(), h.DB, h.Store, userID, &app)
+			freezeCV(ctx, h.DB, h.Store, userID, &app)
 		}
 	}
 	if err := h.DB.Create(&app).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to apply"})
-		return
+		return app, false, err
 	}
 
 	if stage == models.StagePrepared {
 		logActivity(h.DB, userID, "application", "Prepared CV for "+job.Title, job.Company+" · apply on "+job.Platform)
 	} else {
 		logActivity(h.DB, userID, "application", "Applied to "+job.Title, job.Company+" · via "+job.Platform)
-	}
-
-	if stage == "applied" {
 		h.notifyApplied(userID, job, app)
 	}
-
-	c.JSON(http.StatusCreated, dto.FromApplication(app))
+	return app, true, nil
 }
 
 // notifyApplied emails the candidate a receipt and, for a recruiter-posted

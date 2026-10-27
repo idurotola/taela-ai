@@ -50,6 +50,8 @@ func AutoMigrate(gormDB *gorm.DB) error {
 		&models.JobMatch{},
 		&models.TailoredCV{},
 		&models.AIUsage{},
+		&models.AutoApplyRule{},
+		&models.AutoApplyItem{},
 	); err != nil {
 		return err
 	}

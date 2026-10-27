@@ -152,9 +152,7 @@ func (h *MatchHandler) Match(c *gin.Context) {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "we couldn't score this job right now, please try again"})
 		return
 	}
-	b, _ := json.Marshal(m)
-	h.DB.Where("user_id = ? AND job_id = ?", userID, job.ID).Delete(&models.JobMatch{})
-	h.DB.Create(&models.JobMatch{UserID: userID, JobID: job.ID, CVHash: hash, Result: string(b)})
+	saveMatch(h.DB, userID, job.ID, hash, m)
 	c.JSON(http.StatusOK, matchResponse{Match: *m, FormatChecks: checks})
 }
 
@@ -311,4 +309,19 @@ func freezeTailored(app *models.Application, t models.TailoredCV, phone string) 
 	app.CVSnapshot = string(b)
 	app.Phone = phone
 	return true
+}
+
+func decodeMatch(raw string) (*tailor.Match, bool) {
+	var m tailor.Match
+	if json.Unmarshal([]byte(raw), &m) != nil {
+		return nil, false
+	}
+	return &m, true
+}
+
+// saveMatch stores (replacing any earlier) score for a user and job.
+func saveMatch(db *gorm.DB, userID, jobID, hash string, m *tailor.Match) {
+	b, _ := json.Marshal(m)
+	db.Where("user_id = ? AND job_id = ?", userID, jobID).Delete(&models.JobMatch{})
+	db.Create(&models.JobMatch{UserID: userID, JobID: jobID, CVHash: hash, Result: string(b)})
 }
