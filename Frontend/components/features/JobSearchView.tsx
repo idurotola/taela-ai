@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Tag, { TagVariant } from '@/components/ui/Tag';
-import { getMatchColor, PLATFORM_COLORS } from '@/lib/utils';
+import { PLATFORM_COLORS } from '@/lib/utils';
+import ExternalApplyDialog from '@/components/features/ExternalApplyDialog';
+import DirectApplyDialog from '@/components/features/DirectApplyDialog';
+import AtsMatch from '@/components/ui/AtsMatch';
 import { api } from '@/lib/api';
-import { JobListing } from '@/types';
-import { RefreshCw, Bookmark, Zap, ExternalLink } from 'lucide-react';
+import { JobListing, NavView } from '@/types';
+import { RefreshCw, Bookmark, Zap, ExternalLink, Link2 } from 'lucide-react';
 
 const PLATFORM_DOT_COLOR: Record<string, string> = PLATFORM_COLORS;
 
@@ -17,14 +20,17 @@ const TYPE_TAG: Record<string, TagVariant> = {
   'Hybrid': 'blue',
 };
 
-export default function JobSearchView() {
+export default function JobSearchView({ onNavigate }: { onNavigate?: (view: NavView) => void } = {}) {
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [applying, setApplying] = useState<Set<string>>(new Set());
-  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [platform, setPlatform] = useState('All');
+  const [sort, setSort] = useState<'newest' | 'match'>('newest');
   const [refreshing, setRefreshing] = useState(false);
+  const [externalJob, setExternalJob] = useState<JobListing | null>(null);
+  const [directJob, setDirectJob] = useState<JobListing | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchJobs = () =>
     api.jobs()
@@ -35,23 +41,53 @@ export default function JobSearchView() {
     fetchJobs().finally(() => setLoading(false));
   }, []);
 
-  const filtered = platform === 'All' ? jobs : jobs.filter(j => j.platform === platform);
+  const byPlatform = platform === 'All' ? jobs : jobs.filter(j => j.platform === platform);
+  const hasMatches = jobs.some(j => j.atsMatch !== undefined);
+  // The server returns newest first; "best match" is a stable re-sort of that.
+  const filtered = sort === 'match' && hasMatches
+    ? [...byPlatform].sort((a, b) => (b.atsMatch ?? -1) - (a.atsMatch ?? -1))
+    : byPlatform;
 
-  const handleApply = async (id: string) => {
-    setApplying(prev => new Set(prev).add(id));
+  const updateScore = (id: string, score: number) =>
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, atsMatch: score, atsMatchSource: 'ai' } : j));
+
+  // Every job opens its own apply step, where the CV can be tailored to that
+  // listing: external jobs get the download-and-continue dialog, Taela jobs
+  // the send-here dialog.
+  const handleApply = (job: JobListing) => {
+    if (job.sourceType === 'external') setExternalJob(job);
+    else setDirectJob(job);
+  };
+
+  const handleCopyLink = async (job: JobListing) => {
     try {
-      await api.applyToJob(id);
-      setJobs(prev => prev.map(j => j.id === id ? { ...j, applied: true } : j));
+      await navigator.clipboard.writeText(`${window.location.origin}/jobs/${job.slug}`);
+      setCopiedId(job.id);
+      setTimeout(() => setCopiedId(null), 1500);
     } catch {
-      // leave the job unmarked so the user can retry
-    } finally {
-      setApplying(prev => { const n = new Set(prev); n.delete(id); return n; });
+      // clipboard unavailable — the link is still reachable from the job page
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchJobs().finally(() => setRefreshing(false));
+  };
+
+  const handleToggleSave = async (job: JobListing) => {
+    setSavingId(job.id);
+    try {
+      if (job.saved) {
+        await api.unsaveJob(job.id);
+      } else {
+        await api.saveJob(job.id);
+      }
+      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, saved: !job.saved } : j));
+    } catch {
+      // leave it unmarked so the user can retry
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) return <div style={{ padding: 20, color: '#6B6B6B', fontSize: 13 }}>Loading jobs…</div>;
@@ -109,10 +145,27 @@ export default function JobSearchView() {
 
         <div style={{ flex: 1 }} />
 
+        {hasMatches && (
+          <select value={sort} onChange={(e) => setSort(e.target.value as 'newest' | 'match')} aria-label="Sort jobs"
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid #E4E4E4', fontSize: 12, fontWeight: 700, fontFamily: 'Nunito, sans-serif', background: '#fff' }}>
+            <option value="newest">Newest first</option>
+            <option value="match">Best ATS match</option>
+          </select>
+        )}
+
         <Button size="sm" variant="outline" icon={<RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />} onClick={handleRefresh}>
           {refreshing ? 'Refreshing…' : 'Refresh All'}
         </Button>
       </div>
+
+      {!hasMatches && jobs.length > 0 && (
+        <div style={{ background: '#FEF3B0', border: '1px solid #F5C535', borderRadius: 12, padding: '12px 16px', marginBottom: 14, fontSize: 13, lineHeight: 1.5, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 220 }}>
+            <strong>See how well you match every job.</strong> Add your experience or a summary to your Profile (or upload your CV) and each job will show its ATS match.
+          </span>
+          {onNavigate && <Button size="sm" variant="primary" onClick={() => onNavigate('cv')}>Go to Profile</Button>}
+        </div>
+      )}
 
       <div style={{ fontSize: 12, color: '#6B6B6B', marginBottom: 14 }}>
         Showing <strong style={{ color: '#1A1A1A' }}>{filtered.length} matches</strong>
@@ -125,8 +178,8 @@ export default function JobSearchView() {
         )}
         {filtered.map((job: JobListing) => {
           const isApplied = !!job.applied;
-          const isApplying = applying.has(job.id);
-          const isSaved = saved.has(job.id);
+          const isSaved = !!job.saved;
+          const isSaving = savingId === job.id;
           return (
             <div
               key={job.id}
@@ -168,6 +221,7 @@ export default function JobSearchView() {
                   {job.company}{job.location && ` · ${job.location}`}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {job.sourceType === 'external' && <Tag variant="blue">External</Tag>}
                   <Tag variant={TYPE_TAG[job.type] || 'grey'}>{job.type}</Tag>
                   {job.salary && <Tag variant="grey">{job.salary}</Tag>}
                   {job.industry && <Tag variant="blue">{job.industry}</Tag>}
@@ -196,6 +250,24 @@ export default function JobSearchView() {
                     {job.platform}
                   </span>
                   <span style={{ fontSize: 10, color: '#aaa' }}>{job.posted}</span>
+                  <a
+                    href={`/jobs/${job.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 10, fontWeight: 700, color: '#2878B5', textDecoration: 'none' }}
+                  >
+                    Job page
+                  </a>
+                  <button
+                    onClick={() => handleCopyLink(job)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700,
+                      color: '#2878B5', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+                      fontFamily: 'Nunito, sans-serif',
+                    }}
+                  >
+                    <Link2 size={10} /> {copiedId === job.id ? 'Copied!' : 'Copy link'}
+                  </button>
                   {job.sourceUrl && (
                     <a
                       href={job.sourceUrl}
@@ -219,8 +291,7 @@ export default function JobSearchView() {
 
               {/* Match + Actions */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: getMatchColor(job.matchScore) }}>{job.matchScore}%</div>
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', marginBottom: 8 }}>match</div>
+                <div style={{ marginBottom: 8 }}><AtsMatch job={job} /></div>
                 {isApplied ? (
                   <div
                     style={{
@@ -235,19 +306,21 @@ export default function JobSearchView() {
                       borderRadius: 6,
                     }}
                   >
-                    ✓ Applied
+                    {job.sourceType === 'external' ? '✓ In tracker' : '✓ Applied'}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button
-                      onClick={() => setSaved(prev => { const n = new Set(prev); n.has(job.id) ? n.delete(job.id) : n.add(job.id); return n; })}
+                      onClick={() => handleToggleSave(job)}
+                      disabled={isSaving}
                       style={{
                         padding: '5px 8px',
                         border: '1.5px solid #E4E4E4',
                         borderRadius: 6,
                         background: isSaved ? '#FEF3B0' : '#fff',
-                        cursor: 'pointer',
+                        cursor: isSaving ? 'default' : 'pointer',
                         color: isSaved ? '#977411' : '#6B6B6B',
+                        opacity: isSaving ? 0.6 : 1,
                       }}
                     >
                       <Bookmark size={13} fill={isSaved ? '#977411' : 'none'} />
@@ -256,10 +329,9 @@ export default function JobSearchView() {
                       size="sm"
                       variant="primary"
                       icon={<Zap size={12} />}
-                      disabled={isApplying}
-                      onClick={() => handleApply(job.id)}
+                      onClick={() => handleApply(job)}
                     >
-                      {isApplying ? 'Applying…' : 'Apply'}
+                      {job.sourceType === 'external' ? 'CV & apply' : 'Tailor & apply'}
                     </Button>
                   </div>
                 )}
@@ -268,6 +340,24 @@ export default function JobSearchView() {
           );
         })}
       </div>
+
+      {directJob && (
+        <DirectApplyDialog
+          job={directJob}
+          onClose={() => setDirectJob(null)}
+          onScore={(s) => updateScore(directJob.id, s)}
+          onApplied={() => setJobs(prev => prev.map(j => j.id === directJob.id ? { ...j, applied: true } : j))}
+        />
+      )}
+
+      {externalJob && (
+        <ExternalApplyDialog
+          job={externalJob}
+          onClose={() => setExternalJob(null)}
+          onScore={(s) => updateScore(externalJob.id, s)}
+          onPrepared={() => setJobs(prev => prev.map(j => j.id === externalJob.id ? { ...j, applied: true } : j))}
+        />
+      )}
     </div>
   );
 }

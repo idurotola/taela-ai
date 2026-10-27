@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import SectionHeader from '@/components/ui/SectionHeader';
+import AutoApplyView from '@/components/features/AutoApplyView';
 import { api, ApiError } from '@/lib/api';
 import { User, UserSettings } from '@/types';
 
@@ -33,7 +34,6 @@ const TOGGLES: { key: keyof UserSettings; label: string; description: string }[]
   { key: 'jobMatchAlerts', label: 'Job match alerts', description: 'Get notified when a new role matches your profile.' },
   { key: 'applicationUpdates', label: 'Application updates', description: 'Status changes on applications you’ve submitted.' },
   { key: 'weeklyDigest', label: 'Weekly digest', description: 'A weekly summary of your job search activity.' },
-  { key: 'networkSuggestions', label: 'Network suggestions', description: 'Suggested contacts who could refer you.' },
 ];
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -225,6 +225,11 @@ export default function SettingsView({ user, onUserUpdate }: SettingsViewProps) 
             {savingToggle && <div style={{ fontSize: 11, color: '#6B6B6B', marginTop: 8 }}>Saving…</div>}
           </Card>
         </div>
+      </div>
+
+      {/* Auto-apply lives here: it's a standing preference, not a daily destination. */}
+      <div style={{ marginTop: 14 }}>
+        <AutoApplyView />
       </div>
     </div>
   );

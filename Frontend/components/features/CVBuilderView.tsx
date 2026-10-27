@@ -3,20 +3,20 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Tag, { TagVariant } from '@/components/ui/Tag';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { api, ApiError } from '@/lib/api';
 import { CV } from '@/types';
-import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy } from 'lucide-react';
+import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy, Trash2, Pencil } from 'lucide-react';
 import { buildCvText, downloadCvPdf, downloadCvDocx } from '@/lib/cvExport';
+import { toContent } from '@/lib/cvContent';
+import CVUploadCard from '@/components/features/CVUploadCard';
+import CVExtrasCard from '@/components/features/CVExtrasCard';
 
 const STATUS_ICON = {
   ok:   <Check size={14} color="#2EAA8A" />,
   warn: <AlertTriangle size={14} color="#F5C535" />,
   bad:  <X size={14} color="#E83567" />,
 };
-
-const TAG_CYCLE: TagVariant[] = ['teal', 'teal', 'yellow', 'yellow', 'grey', 'grey', 'pink', 'blue', 'teal', 'yellow'];
 
 const INPUT_STYLE = {
   width: '100%',
@@ -43,22 +43,24 @@ const PERSONAL_FIELDS: { key: FieldKey; label: string; type: string }[] = [
 
 export default function CVBuilderView() {
   const [cv, setCv] = useState<CV | null>(null);
-  const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addingExp, setAddingExp] = useState(false);
+  const [showExpForm, setShowExpForm] = useState(false);
+  const [expForm, setExpForm] = useState({ role: '', company: '', dates: '', bullets: '' });
+  const [expError, setExpError] = useState('');
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingDocx, setExportingDocx] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [editingExpId, setEditingExpId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ role: '', company: '', dates: '', bullets: '' });
+  const [savingExp, setSavingExp] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.cv(), api.keywords()])
-      .then(([cvData, kw]) => {
-        setCv(cvData);
-        setKeywords(kw);
-      })
+    api.cv()
+      .then(setCv)
       .catch(() => setError('Could not load your CV right now.'))
       .finally(() => setLoading(false));
   }, []);
@@ -88,11 +90,8 @@ export default function CVBuilderView() {
   const handleAnalyze = async () => {
     setAnalyzing(true);
     try {
-      // Persist the latest tailoring inputs so the server scores against them.
-      await api.updateCV({
-        summary: cv.summary, targetRole: cv.targetRole, targetCompany: cv.targetCompany,
-        jobDescription: cv.jobDescription, autoTailor: cv.autoTailor,
-      });
+      // Persist the summary so the check scores what's on screen.
+      await api.updateCV({ summary: cv.summary });
       const analyzed = await api.analyzeCV();
       setCv(analyzed);
     } catch (err) {
@@ -102,21 +101,23 @@ export default function CVBuilderView() {
     }
   };
 
-  const handleAddExperience = async () => {
-    const role = window.prompt('Role title?');
-    if (!role) return;
-    const company = window.prompt('Company?');
-    if (!company) return;
-    const dates = window.prompt('Dates (e.g. "Jan 2022 – Present")?') || '';
-    const bulletsRaw = window.prompt('Achievements, separated by "|"?') || '';
-    const bullets = bulletsRaw.split('|').map(b => b.trim()).filter(Boolean);
+  const handleAddExperience = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setExpError('');
+    if (!expForm.role.trim() || !expForm.company.trim()) {
+      setExpError('Role and company are required.');
+      return;
+    }
+    const bullets = expForm.bullets.split('\n').map(b => b.trim()).filter(Boolean);
 
     setAddingExp(true);
     try {
-      const exp = await api.addCVExperience({ role, company, dates, bullets });
+      const exp = await api.addCVExperience({ role: expForm.role, company: expForm.company, dates: expForm.dates, bullets });
       setCv(prev => prev ? { ...prev, experiences: [...prev.experiences, exp] } : prev);
+      setExpForm({ role: '', company: '', dates: '', bullets: '' });
+      setShowExpForm(false);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to add experience.');
+      setExpError(err instanceof ApiError ? err.message : 'Failed to add experience.');
     } finally {
       setAddingExp(false);
     }
@@ -154,10 +155,43 @@ export default function CVBuilderView() {
     }
   };
 
-  const handleAutoAddKeywords = () => {
-    const missing = keywords.filter(kw => !cv.jobDescription.toLowerCase().includes(kw.toLowerCase()));
-    if (missing.length === 0) return;
-    setField('jobDescription', [cv.jobDescription, missing.join(', ')].filter(Boolean).join('\n'));
+  const startEditExperience = (exp: CV['experiences'][number]) => {
+    setEditingExpId(exp.id);
+    setEditForm({ role: exp.role, company: exp.company, dates: exp.dates, bullets: exp.bullets.join('\n') });
+  };
+
+  const saveEditedExperience = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.role.trim() && !editForm.company.trim()) {
+      setExpError('Role or company is required.');
+      return;
+    }
+    setSavingExp(true);
+    setExpError('');
+    try {
+      const content = toContent(cv);
+      content.experiences = cv.experiences.map((x) =>
+        x.id === editingExpId
+          ? { role: editForm.role, company: editForm.company, dates: editForm.dates, bullets: editForm.bullets.split('\n').map(b => b.trim()).filter(Boolean) }
+          : { role: x.role, company: x.company, dates: x.dates, bullets: x.bullets },
+      );
+      setCv(await api.saveCVContent(content));
+      setEditingExpId(null);
+    } catch (err) {
+      setExpError(err instanceof ApiError ? err.message : 'Failed to save experience.');
+    } finally {
+      setSavingExp(false);
+    }
+  };
+
+  const handleDeleteExperience = async (id: string) => {
+    if (!window.confirm('Remove this experience?')) return;
+    setCv(prev => prev ? { ...prev, experiences: prev.experiences.filter(e => e.id !== id) } : prev);
+    try {
+      await api.deleteCVExperience(id);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to remove experience.');
+    }
   };
 
   const score = cv.score;
@@ -168,6 +202,8 @@ export default function CVBuilderView() {
       <div className="cv-grid">
         {/* Left — Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <CVUploadCard cv={cv} onCvChange={setCv} />
+
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SectionHeader title="Personal Information" style={{ marginBottom: 0 }} />
@@ -203,82 +239,92 @@ export default function CVBuilderView() {
           </Card>
 
           <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 700, marginBottom: 3 }}>AI Feature</div>
-                <div style={{ fontSize: 15, fontWeight: 800 }}>Auto-Tailor for Role</div>
-              </div>
-              <button
-                onClick={() => setField('autoTailor', !cv.autoTailor)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  background: cv.autoTailor ? '#B3E8DC' : '#F0F0F0',
-                  color: cv.autoTailor ? '#1F7D65' : '#6B6B6B',
-                  border: 'none',
-                  borderRadius: 20,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'Nunito, sans-serif',
-                }}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: cv.autoTailor ? '#2EAA8A' : '#ccc', display: 'block' }} />
-                Auto-tailor {cv.autoTailor ? 'ON' : 'OFF'}
-              </button>
-            </div>
-            <div className="cv-fields" style={{ marginBottom: 10 }}>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
-                  Role Applying For
-                </label>
-                <input value={cv.targetRole} onChange={(e) => setField('targetRole', e.target.value)} style={INPUT_STYLE} />
-              </div>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
-                  Company
-                </label>
-                <input value={cv.targetCompany} onChange={(e) => setField('targetCompany', e.target.value)} style={INPUT_STYLE} />
-              </div>
-            </div>
-            <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
-              Job Description (paste to optimise)
-            </label>
-            <textarea
-              value={cv.jobDescription}
-              onChange={(e) => setField('jobDescription', e.target.value)}
-              placeholder="Paste the job description here to automatically optimise your CV keywords and summary…"
-              style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 70, marginBottom: 10 }}
-            />
-            <Button
-              variant="teal"
-              fullWidth
-              icon={<Wand2 size={14} />}
-              onClick={handleAnalyze}
-              disabled={analyzing}
-            >
-              {analyzing ? 'Analysing…' : 'AI Tailor This CV'}
-            </Button>
-          </Card>
-
-          <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SectionHeader title="Work Experience" style={{ marginBottom: 0 }} />
-              <Button size="sm" variant="outline" icon={<Plus size={12} />} onClick={handleAddExperience} disabled={addingExp}>Add</Button>
+              <Button
+                size="sm" variant="outline" icon={<Plus size={12} />}
+                onClick={() => { setShowExpForm(v => !v); setExpError(''); }}
+              >
+                {showExpForm ? 'Cancel' : 'Add'}
+              </Button>
             </div>
+
+            {showExpForm && (
+              <form onSubmit={handleAddExperience} style={{ background: '#F6F6F6', borderRadius: 10, padding: 14, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="cv-fields">
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Role</label>
+                    <input value={expForm.role} onChange={e => setExpForm(f => ({ ...f, role: e.target.value }))} placeholder="Senior Product Manager" style={INPUT_STYLE} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Company</label>
+                    <input value={expForm.company} onChange={e => setExpForm(f => ({ ...f, company: e.target.value }))} placeholder="Acme Inc." style={INPUT_STYLE} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Dates</label>
+                  <input value={expForm.dates} onChange={e => setExpForm(f => ({ ...f, dates: e.target.value }))} placeholder="Jan 2022 – Present" style={INPUT_STYLE} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Achievements (one per line)</label>
+                  <textarea
+                    value={expForm.bullets}
+                    onChange={e => setExpForm(f => ({ ...f, bullets: e.target.value }))}
+                    rows={3}
+                    placeholder={'Shipped feature X\nLed a team of 4'}
+                    style={{ ...INPUT_STYLE, resize: 'vertical' }}
+                  />
+                </div>
+                {expError && <div style={{ fontSize: 12, color: '#BA1F4F' }}>{expError}</div>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button type="submit" size="sm" variant="primary" disabled={addingExp}>
+                    {addingExp ? 'Adding…' : 'Save experience'}
+                  </Button>
+                </div>
+              </form>
+            )}
+
             {cv.experiences.length === 0 && (
               <div style={{ fontSize: 12, color: '#6B6B6B' }}>No experience added yet — click &quot;Add&quot; to build your work history.</div>
             )}
-            {cv.experiences.map((exp) => (
+            {cv.experiences.map((exp) => editingExpId === exp.id ? (
+              <form key={exp.id} onSubmit={saveEditedExperience} style={{ background: '#F6F6F6', borderRadius: 10, padding: 14, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="cv-fields">
+                  <input value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))} placeholder="Role" aria-label="Role" style={INPUT_STYLE} />
+                  <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} placeholder="Company" aria-label="Company" style={INPUT_STYLE} />
+                </div>
+                <input value={editForm.dates} onChange={e => setEditForm(f => ({ ...f, dates: e.target.value }))} placeholder="Jan 2022 – Present" aria-label="Dates" style={INPUT_STYLE} />
+                <textarea value={editForm.bullets} onChange={e => setEditForm(f => ({ ...f, bullets: e.target.value }))} rows={4} placeholder="One achievement per line" aria-label="Achievements" style={{ ...INPUT_STYLE, resize: 'vertical' }} />
+                {expError && <div style={{ fontSize: 12, color: '#BA1F4F' }}>{expError}</div>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button type="submit" size="sm" variant="primary" disabled={savingExp}>{savingExp ? 'Saving…' : 'Save'}</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditingExpId(null); setExpError(''); }}>Cancel</Button>
+                </div>
+              </form>
+            ) : (
               <div key={exp.id} style={{ borderBottom: '1px solid #F0F0F0', paddingBottom: 12, marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{exp.role}</div>
                     <div style={{ fontSize: 12, color: '#6B6B6B' }}>{exp.company}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#6B6B6B', textAlign: 'right' }}>{exp.dates}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 11, color: '#6B6B6B', textAlign: 'right' }}>{exp.dates}</div>
+                    <button
+                      onClick={() => startEditExperience(exp)}
+                      aria-label="Edit experience"
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#aaa', padding: 2 }}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteExperience(exp.id)}
+                      aria-label="Remove experience"
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#aaa', padding: 2 }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
                 <ul style={{ paddingLeft: 14, margin: 0 }}>
                   {exp.bullets.map((b, i) => (
@@ -288,6 +334,8 @@ export default function CVBuilderView() {
               </div>
             ))}
           </Card>
+
+          <CVExtrasCard key={cv.id + (cv.education?.length ?? 0) + (cv.skills?.length ?? 0)} cv={cv} onCvChange={setCv} />
         </div>
 
         {/* Right — Score + Keywords */}
@@ -317,8 +365,12 @@ export default function CVBuilderView() {
               </div>
             </div>
 
+            <Button variant="outline" fullWidth icon={<Wand2 size={13} />} onClick={handleAnalyze} disabled={analyzing} style={{ marginBottom: 12 }}>
+              {analyzing ? 'Checking…' : 'Re-check my CV'}
+            </Button>
+
             {cv.atsChecks.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#6B6B6B' }}>Run &quot;AI Tailor This CV&quot; to generate your ATS checklist.</div>
+              <div style={{ fontSize: 12, color: '#6B6B6B' }}>Run the check to see how ATS-friendly your CV is. To tailor it for a specific job, open that job in Job Search.</div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {cv.atsChecks.map((check) => (
@@ -339,21 +391,6 @@ export default function CVBuilderView() {
                 ))}
               </ul>
             )}
-          </Card>
-
-          <Card>
-            <SectionHeader title="Keyword Suggestions" />
-            <p style={{ fontSize: 12, color: '#6B6B6B', marginBottom: 10 }}>Add these to improve your ATS score:</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-              {keywords.map((kw, i) => (
-                <Tag key={kw} variant={TAG_CYCLE[i % TAG_CYCLE.length]}>
-                  {kw}
-                </Tag>
-              ))}
-            </div>
-            <Button variant="primary" fullWidth icon={<Wand2 size={13} />} onClick={handleAutoAddKeywords}>
-              Auto-add Missing Keywords
-            </Button>
           </Card>
 
           <Card>

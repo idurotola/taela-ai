@@ -29,6 +29,21 @@ export function buildCvText(cv: CV): string {
     });
   }
 
+  if (cv.education?.length) {
+    lines.push('EDUCATION');
+    cv.education.forEach((e) => {
+      const header = [e.degree, e.school].filter(Boolean).join(' — ');
+      lines.push(e.dates ? `${header} (${e.dates})` : header);
+    });
+    lines.push('');
+  }
+
+  if (cv.skills?.length) {
+    lines.push('SKILLS');
+    lines.push(cv.skills.join(', '));
+    lines.push('');
+  }
+
   return lines.join('\n').trim();
 }
 
@@ -123,6 +138,26 @@ export async function downloadCvPdf(cv: CV): Promise<void> {
     });
   }
 
+  const addSection = (title: string, rows: string[]) => {
+    if (rows.length === 0) return;
+    ensureSpace(32);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(title, marginX, y);
+    y += 14;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    rows.forEach((row) => {
+      const lines = doc.splitTextToSize(row, pageWidth);
+      ensureSpace(lines.length * 13);
+      doc.text(lines, marginX, y);
+      y += lines.length * 13 + 2;
+    });
+    y += 10;
+  };
+  addSection('EDUCATION', (cv.education ?? []).map((e) => [[e.degree, e.school].filter(Boolean).join(' — '), e.dates && `(${e.dates})`].filter(Boolean).join(' ')));
+  addSection('SKILLS', cv.skills?.length ? [cv.skills.join(', ')] : []);
+
   doc.save(`${fileBaseName(cv)}_CV.pdf`);
 }
 
@@ -155,6 +190,17 @@ export async function downloadCvDocx(cv: CV): Promise<void> {
         children.push(new Paragraph({ text: b, bullet: { level: 0 } }));
       });
     });
+  }
+
+  if (cv.education?.length) {
+    children.push(new Paragraph({ text: 'Education', heading: HeadingLevel.HEADING_2 }));
+    cv.education.forEach((e) => {
+      children.push(new Paragraph({ text: [[e.degree, e.school].filter(Boolean).join(' — '), e.dates && `(${e.dates})`].filter(Boolean).join(' ') }));
+    });
+  }
+  if (cv.skills?.length) {
+    children.push(new Paragraph({ text: 'Skills', heading: HeadingLevel.HEADING_2 }));
+    children.push(new Paragraph({ text: cv.skills.join(', ') }));
   }
 
   const doc = new Document({ sections: [{ children }] });

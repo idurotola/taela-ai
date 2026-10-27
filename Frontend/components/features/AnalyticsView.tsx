@@ -4,33 +4,20 @@ import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import SectionHeader from '@/components/ui/SectionHeader';
-import Button from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import { PLATFORM_COLORS } from '@/lib/utils';
-import { AnalyticsSummary, MarketInsight } from '@/types';
-import { TrendingUp } from 'lucide-react';
-
-const ACCENT_BORDER: Record<string, string> = {
-  yellow: '#F5C535',
-  teal: '#2EAA8A',
-  blue: '#2878B5',
-  pink: '#E83567',
-};
+import { AnalyticsSummary } from '@/types';
 
 const FUNNEL_COLORS = ['#6B6B6B', '#2878B5', '#F5C535', '#E83567', '#2EAA8A'];
 
 export default function AnalyticsView() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
-  const [insights, setInsights] = useState<MarketInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([api.analyticsSummary(), api.insights()])
-      .then(([summary, marketInsights]) => {
-        setData(summary);
-        setInsights(marketInsights);
-      })
+    api.analyticsSummary()
+      .then(setData)
       .catch(() => setError('Could not load analytics right now.'))
       .finally(() => setLoading(false));
   }, []);
@@ -121,30 +108,7 @@ export default function AnalyticsView() {
         </Card>
       </div>
 
-      <div className="two-one-col">
-        {/* Market Insights */}
-        <Card>
-          <SectionHeader title="Market Insights" action={
-            <Button size="sm" variant="outline" icon={<TrendingUp size={12} />}>Full Report</Button>
-          } />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {insights.map((insight) => (
-              <div
-                key={insight.id || insight.title}
-                style={{
-                  background: '#F6F6F6',
-                  borderRadius: 8,
-                  padding: '12px 14px',
-                  borderLeft: `3px solid ${ACCENT_BORDER[insight.accent]}`,
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A', marginBottom: 3 }}>{insight.title}</div>
-                <div style={{ fontSize: 12, color: '#6B6B6B', lineHeight: 1.5 }}>{insight.text}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
+      <div>
         {/* Conversion funnel */}
         <Card>
           <SectionHeader title="Conversion Funnel" />

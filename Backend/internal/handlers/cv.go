@@ -10,9 +10,11 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
+	"taela-ai-backend/internal/ai"
 	"taela-ai-backend/internal/auth"
 	"taela-ai-backend/internal/dto"
 	"taela-ai-backend/internal/models"
+	"taela-ai-backend/internal/storage"
 )
 
 // KeywordSuggestions is the fixed set of ATS keywords the CV is scored against.
@@ -26,7 +28,9 @@ func Keywords(c *gin.Context) {
 }
 
 type CVHandler struct {
-	DB *gorm.DB
+	DB    *gorm.DB
+	Store storage.Store // nil when file storage isn't configured
+	AI    ai.Provider
 }
 
 func (h *CVHandler) getOrCreate(userID string) (*models.CV, error) {
@@ -34,6 +38,7 @@ func (h *CVHandler) getOrCreate(userID string) (*models.CV, error) {
 	err := h.DB.
 		Preload("Experiences", func(db *gorm.DB) *gorm.DB { return db.Order("sort asc") }).
 		Preload("ATSChecks", func(db *gorm.DB) *gorm.DB { return db.Order("sort asc") }).
+		Preload("Education", func(db *gorm.DB) *gorm.DB { return db.Order("sort asc") }).
 		Where("user_id = ?", userID).First(&cv).Error
 	if err == nil {
 		return &cv, nil
@@ -177,7 +182,7 @@ func (h *CVHandler) Analyze(c *gin.Context) {
 		return
 	}
 
-	haystack := strings.ToLower(cv.Summary + " " + cv.JobDescription)
+	haystack := strings.ToLower(cv.Summary + " " + cv.JobDescription + " " + strings.Join(cv.Skills, " "))
 	for _, e := range cv.Experiences {
 		haystack += " " + strings.ToLower(strings.Join(e.Bullets, " "))
 	}
@@ -235,6 +240,7 @@ func (h *CVHandler) Analyze(c *gin.Context) {
 	h.DB.Save(cv)
 	h.DB.Preload("Experiences", func(db *gorm.DB) *gorm.DB { return db.Order("sort asc") }).
 		Preload("ATSChecks", func(db *gorm.DB) *gorm.DB { return db.Order("sort asc") }).
+		Preload("Education", func(db *gorm.DB) *gorm.DB { return db.Order("sort asc") }).
 		First(cv, "id = ?", cv.ID)
 
 	logActivity(h.DB, userID, "cv", "CV auto-tailored", fmt.Sprintf("New ATS score: %d", cv.Score))

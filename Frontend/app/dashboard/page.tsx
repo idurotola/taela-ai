@@ -11,7 +11,6 @@ import CVBuilderView from '@/components/features/CVBuilderView';
 import JobSearchView from '@/components/features/JobSearchView';
 import TrackerView from '@/components/features/TrackerView';
 import AnalyticsView from '@/components/features/AnalyticsView';
-import NetworkView from '@/components/features/NetworkView';
 import SettingsView from '@/components/features/SettingsView';
 import { api, getToken, clearToken, ApiError } from '@/lib/api';
 
@@ -20,6 +19,7 @@ export default function DashboardPage() {
   const [activeView, setActiveView] = useState<NavView>('dashboard');
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
+  const [badgeCounts, setBadgeCounts] = useState<Partial<Record<NavView, number>>>({});
 
   useEffect(() => {
     if (!getToken()) {
@@ -35,6 +35,11 @@ export default function DashboardPage() {
         }
       })
       .finally(() => setChecking(false));
+
+    // Real sidebar badge counts, not placeholder literals.
+    api.jobs()
+      .then((jobs) => setBadgeCounts({ jobs: jobs.length }))
+      .catch(() => {});
   }, [router]);
 
   const handleSignOut = () => {
@@ -46,10 +51,9 @@ export default function DashboardPage() {
     switch (activeView) {
       case 'dashboard':   return <DashboardView onNavigate={setActiveView} />;
       case 'cv':          return <CVBuilderView />;
-      case 'jobs':        return <JobSearchView />;
+      case 'jobs':        return <JobSearchView onNavigate={setActiveView} />;
       case 'tracker':     return <TrackerView />;
       case 'analytics':   return <AnalyticsView />;
-      case 'network':     return <NetworkView />;
       case 'settings':    return <SettingsView user={user} onUserUpdate={setUser} />;
       default:            return <DashboardView onNavigate={setActiveView} />;
     }
@@ -68,7 +72,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F0F0F0' }}>
-      <Sidebar activeView={activeView} onNavigate={setActiveView} user={user} onSignOut={handleSignOut} />
+      <Sidebar activeView={activeView} onNavigate={setActiveView} user={user} onSignOut={handleSignOut} badgeCounts={badgeCounts} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Topbar activeView={activeView} />
         <main

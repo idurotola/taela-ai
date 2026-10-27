@@ -49,7 +49,7 @@ func Sync(db *gorm.DB) (Result, error) {
 
 		company, location := parseCompanyLocation(item.Title)
 		publishedAt := parsePubDate(item.PubDate)
-		initials, bg, fg := deriveLogo(company)
+		initials, bg, fg := DeriveLogo(company)
 
 		var existing models.Job
 		err := db.Where("source_guid = ?", guid).First(&existing).Error
@@ -59,10 +59,10 @@ func Sync(db *gorm.DB) (Result, error) {
 			}
 			job := models.Job{
 				Title: strings.TrimSpace(item.Title), Company: company, Location: location,
-				Type: "Full-time", Platform: "MyJobMag", Industry: item.Industry,
-				Description:   strings.TrimSpace(item.Description),
-				MatchScore:    computeMatchScore(publishedAt),
-				LogoInitials:  initials, LogoColor: bg, LogoTextColor: fg,
+				Type: "Full-time", Platform: "MyJobMag", SourceType: models.SourceTypeExternal, Industry: item.Industry,
+				Description:  strings.TrimSpace(item.Description),
+				MatchScore:   computeMatchScore(publishedAt),
+				LogoInitials: initials, LogoColor: bg, LogoTextColor: fg,
 				PublishedAt: publishedAt, Source: SourceName, SourceGUID: guid, SourceURL: item.Link,
 				Active: true, LastSeenAt: syncStart,
 			}
@@ -153,7 +153,7 @@ var logoPalette = []struct{ bg, fg string }{
 	{bg: "#E8F2FB", fg: "#1A5C8E"},
 }
 
-func deriveLogo(company string) (initials, bg, fg string) {
+func DeriveLogo(company string) (initials, bg, fg string) {
 	words := strings.Fields(company)
 	switch {
 	case len(words) == 0:
