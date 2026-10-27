@@ -3,6 +3,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -157,14 +158,33 @@ type CVDTO struct {
 	AutoTailor     bool              `json:"autoTailor"`
 	JobDescription string            `json:"jobDescription"`
 	Score          int               `json:"score"`
+	Skills         []string          `json:"skills"`
 	Experiences    []CVExperienceDTO `json:"experiences"`
+	Education      []CVEducationDTO  `json:"education"`
 	ATSChecks      []ATSCheckDTO     `json:"atsChecks"`
+	SourceFileName string            `json:"sourceFileName,omitempty"`
+	SourceFileSize int64             `json:"sourceFileSize,omitempty"`
+}
+
+type CVEducationDTO struct {
+	ID     string `json:"id"`
+	School string `json:"school"`
+	Degree string `json:"degree"`
+	Dates  string `json:"dates"`
 }
 
 func FromCV(cv models.CV) CVDTO {
 	exps := make([]CVExperienceDTO, 0, len(cv.Experiences))
 	for _, e := range cv.Experiences {
 		exps = append(exps, CVExperienceDTO{ID: e.ID, Role: e.Role, Company: e.Company, Dates: e.Dates, Bullets: []string(e.Bullets)})
+	}
+	edu := make([]CVEducationDTO, 0, len(cv.Education))
+	for _, e := range cv.Education {
+		edu = append(edu, CVEducationDTO{ID: e.ID, School: e.School, Degree: e.Degree, Dates: e.Dates})
+	}
+	skills := []string(cv.Skills)
+	if skills == nil {
+		skills = []string{}
 	}
 	checks := make([]ATSCheckDTO, 0, len(cv.ATSChecks))
 	for _, ck := range cv.ATSChecks {
@@ -174,7 +194,8 @@ func FromCV(cv models.CV) CVDTO {
 		ID: cv.ID, FullName: cv.FullName, JobTitle: cv.JobTitle, Email: cv.Email, Location: cv.Location,
 		Phone: cv.Phone, LinkedIn: cv.LinkedIn, Summary: cv.Summary, TargetRole: cv.TargetRole,
 		TargetCompany: cv.TargetCompany, AutoTailor: cv.AutoTailor, JobDescription: cv.JobDescription,
-		Score: cv.Score, Experiences: exps, ATSChecks: checks,
+		Score: cv.Score, Skills: skills, Experiences: exps, Education: edu, ATSChecks: checks,
+		SourceFileName: cv.SourceFileName, SourceFileSize: cv.SourceFileSize,
 	}
 }
 
@@ -241,12 +262,14 @@ type RecruiterProfileDTO struct {
 	CompanyName    string `json:"companyName,omitempty"`
 	CompanyWebsite string `json:"companyWebsite,omitempty"`
 	Industry       string `json:"industry,omitempty"`
+	Verification   string `json:"verificationStatus"`
 }
 
 func FromRecruiterProfile(p models.RecruiterProfile) RecruiterProfileDTO {
 	return RecruiterProfileDTO{
 		ID: p.ID, Type: p.Type, Specialty: p.Specialty, Bio: p.Bio,
 		CompanyName: p.CompanyName, CompanyWebsite: p.CompanyWebsite, Industry: p.Industry,
+		Verification: p.VerificationStatus,
 	}
 }
 
@@ -283,21 +306,47 @@ func FromRecruiterJob(j models.Job, applicantCount int) RecruiterJobDTO {
 	}
 }
 
-// RecruiterApplicantDTO is a candidate from the applicant's own account,
-// as seen by the recruiter who owns the job they applied to.
+// RecruiterApplicantDTO is a candidate as seen by the recruiter who owns the
+// job they applied to. The list view carries the summary; the detail view
+// (RecruiterApplicantDetailDTO) adds the cover letter and CV.
 type RecruiterApplicantDTO struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Email     string `json:"email"`
+	Phone     string `json:"phone,omitempty"`
 	Stage     string `json:"stage"`
 	AppliedAt string `json:"appliedAt"`
+	HasCV     bool   `json:"hasCv"`
+	Rating    int    `json:"rating"`
 }
 
 func FromRecruiterApplicant(a models.Application, name, email string) RecruiterApplicantDTO {
 	return RecruiterApplicantDTO{
-		ID: a.ID, Name: name, Email: email, Stage: a.Stage,
+		ID: a.ID, Name: name, Email: email, Phone: a.Phone, Stage: a.Stage,
 		AppliedAt: a.CreatedAt.Format(time.RFC3339),
+		HasCV:     a.CVFileKey != "" || a.CVSnapshot != "",
+		Rating:    a.RecruiterRating,
 	}
+}
+
+type RecruiterApplicantDetailDTO struct {
+	RecruiterApplicantDTO
+	JobTitle    string          `json:"jobTitle"`
+	CoverLetter string          `json:"coverLetter"`
+	Notes       string          `json:"notes"`
+	CVFileName  string          `json:"cvFileName,omitempty"`
+	CV          json.RawMessage `json:"cv,omitempty"` // frozen CVDTO at apply time
+}
+
+func FromRecruiterApplicantDetail(a models.Application, name, email string) RecruiterApplicantDetailDTO {
+	d := RecruiterApplicantDetailDTO{
+		RecruiterApplicantDTO: FromRecruiterApplicant(a, name, email),
+		JobTitle:              a.Title, CoverLetter: a.CoverLetter, Notes: a.RecruiterNotes, CVFileName: a.CVFileName,
+	}
+	if a.CVSnapshot != "" {
+		d.CV = json.RawMessage(a.CVSnapshot)
+	}
+	return d
 }
 
 // PublicJobDTO is what the unauthenticated job page needs: the full

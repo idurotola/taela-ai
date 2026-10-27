@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -16,12 +17,15 @@ import (
 	"taela-ai-backend/internal/email"
 	"taela-ai-backend/internal/jobsync"
 	"taela-ai-backend/internal/models"
+	"taela-ai-backend/internal/storage"
 )
 
 type RecruiterHandler struct {
-	DB        *gorm.DB
-	Email     *email.Service
-	JWTSecret string
+	DB          *gorm.DB
+	Email       *email.Service
+	JWTSecret   string
+	Store       storage.Store
+	FrontendURL string
 }
 
 type recruiterSignupRequest struct {
@@ -118,7 +122,10 @@ func (h *RecruiterHandler) UpdateProfile(c *gin.Context) {
 
 	userID := auth.UserID(c)
 	var profile models.RecruiterProfile
-	h.DB.Where("user_id = ?", userID).First(&profile)
+	isNew := h.DB.Where("user_id = ?", userID).First(&profile).Error != nil
+	// Changing the company or website of a verified profile voids the
+	// verification: the proof was for the old identity.
+	identityChanged := !isNew && (profile.CompanyName != req.CompanyName || profile.CompanyWebsite != req.CompanyWebsite || profile.Type != req.Type)
 	profile.UserID = userID
 	profile.Type = req.Type
 	profile.Specialty = req.Specialty
@@ -127,6 +134,9 @@ func (h *RecruiterHandler) UpdateProfile(c *gin.Context) {
 	profile.CompanyWebsite = req.CompanyWebsite
 	profile.Industry = req.Industry
 
+	if isNew || identityChanged {
+		profile.VerificationStatus, profile.VerifiedAt = models.VerificationUnverified, nil
+	}
 	if err := h.DB.Save(&profile).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save profile"})
 		return
@@ -173,6 +183,11 @@ func (h *RecruiterHandler) CreateJob(c *gin.Context) {
 	var profile models.RecruiterProfile
 	if err := h.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "complete your recruiter profile before posting a job"})
+		return
+	}
+
+	if !profile.IsVerified() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "verify your company before posting jobs", "code": "verification_required"})
 		return
 	}
 
@@ -344,44 +359,110 @@ func (h *RecruiterHandler) ListApplicants(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-type applicantStageRequest struct {
-	Stage string `json:"stage" binding:"required"`
-}
-
-// UpdateApplicantStage moves a candidate through the pipeline on one of the
-// recruiter's own jobs; the move also shows up in the candidate's tracker.
-func (h *RecruiterHandler) UpdateApplicantStage(c *gin.Context) {
-	userID := auth.UserID(c)
-
+// ownedApplication loads an application and checks it belongs to one of the
+// signed-in recruiter's own jobs. A miss is a plain 404 either way, so
+// recruiters can't probe for other recruiters' applications.
+func (h *RecruiterHandler) ownedApplication(c *gin.Context) (models.Application, models.Job, bool) {
 	var app models.Application
+	var job models.Job
 	if err := h.DB.Where("id = ?", c.Param("id")).First(&app).Error; err != nil || app.JobID == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return app, job, false
+	}
+	if err := h.DB.Where("id = ? AND recruiter_id = ?", *app.JobID, auth.UserID(c)).First(&job).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return app, job, false
+	}
+	return app, job, true
+}
+
+// GetApplicant returns everything a recruiter sees about one applicant.
+func (h *RecruiterHandler) GetApplicant(c *gin.Context) {
+	app, _, ok := h.ownedApplication(c)
+	if !ok {
 		return
 	}
-	var job models.Job
-	if err := h.DB.Where("id = ? AND recruiter_id = ?", *app.JobID, userID).First(&job).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+	var user models.User
+	h.DB.First(&user, "id = ?", app.UserID)
+	c.JSON(http.StatusOK, dto.FromRecruiterApplicantDetail(app, user.Name, user.Email))
+}
+
+// DownloadApplicantCV streams the CV file the candidate sent.
+func (h *RecruiterHandler) DownloadApplicantCV(c *gin.Context) {
+	app, _, ok := h.ownedApplication(c)
+	if !ok {
+		return
+	}
+	serveApplicationFile(c, h.Store, app)
+}
+
+type applicantUpdateRequest struct {
+	Stage  *string `json:"stage"`
+	Notes  *string `json:"notes"`
+	Rating *int    `json:"rating"`
+}
+
+// UpdateApplicantStage moves a candidate through the pipeline and/or saves
+// the recruiter's private notes and rating. A stage move shows up in the
+// candidate's tracker and emails them (unless they've turned update emails off).
+func (h *RecruiterHandler) UpdateApplicantStage(c *gin.Context) {
+	app, job, ok := h.ownedApplication(c)
+	if !ok {
 		return
 	}
 
-	var req applicantStageRequest
+	var req applicantUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if !models.IsValidRecruiterStage(req.Stage) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid stage"})
+	if req.Stage == nil && req.Notes == nil && req.Rating == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "nothing to update"})
 		return
 	}
 
-	app.Stage = req.Stage
+	stageChanged := false
+	if req.Stage != nil {
+		if !models.IsValidRecruiterStage(*req.Stage) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid stage"})
+			return
+		}
+		stageChanged = *req.Stage != app.Stage
+		app.Stage = *req.Stage
+	}
+	if req.Notes != nil {
+		app.RecruiterNotes = clipStr(*req.Notes, 5000)
+	}
+	if req.Rating != nil {
+		if *req.Rating < 0 || *req.Rating > 5 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "rating must be between 0 and 5"})
+			return
+		}
+		app.RecruiterRating = *req.Rating
+	}
+
 	if err := h.DB.Save(&app).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update application"})
 		return
 	}
-	logActivity(h.DB, app.UserID, "application", app.Title+" moved to "+req.Stage, app.Company)
 
 	var user models.User
 	h.DB.First(&user, "id = ?", app.UserID)
-	c.JSON(http.StatusOK, dto.FromRecruiterApplicant(app, user.Name, user.Email))
+	if stageChanged {
+		logActivity(h.DB, app.UserID, "application", app.Title+" moved to "+app.Stage, app.Company)
+		h.emailStageChange(user, job, app.Stage)
+	}
+	c.JSON(http.StatusOK, dto.FromRecruiterApplicantDetail(app, user.Name, user.Email))
+}
+
+func (h *RecruiterHandler) emailStageChange(user models.User, job models.Job, stage string) {
+	// No settings row means they never changed the default, which is "on".
+	var settings models.UserSettings
+	if err := h.DB.Where("user_id = ?", user.ID).First(&settings).Error; err == nil && !settings.ApplicationUpdates {
+		return
+	}
+	link := strings.TrimRight(h.FrontendURL, "/") + "/dashboard"
+	notify("application update", func(ctx context.Context) error {
+		return h.Email.SendApplicationUpdate(ctx, email.Recipient{Email: user.Email, Name: user.Name}, job.Title, job.Company, stage, link)
+	})
 }

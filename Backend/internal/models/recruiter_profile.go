@@ -25,8 +25,24 @@ type RecruiterProfile struct {
 	CompanyWebsite string `json:"companyWebsite,omitempty"`
 	Industry       string `json:"industry,omitempty"`
 
+	// VerificationStatus gates posting jobs: only "verified" recruiters can
+	// post. "" is a profile created before verification existed (treated as
+	// verified, see db.backfill); new profiles start at "unverified".
+	VerificationStatus string     `json:"verificationStatus"`
+	VerifiedAt         *time.Time `json:"verifiedAt,omitempty"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+const (
+	VerificationUnverified = "unverified"
+	VerificationPending    = "pending"
+	VerificationVerified   = "verified"
+)
+
+func (p RecruiterProfile) IsVerified() bool {
+	return p.VerificationStatus == VerificationVerified
 }
 
 func IsValidRecruiterKind(kind string) bool {

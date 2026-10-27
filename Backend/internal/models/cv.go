@@ -9,24 +9,36 @@ import (
 // CV holds a user's single CV/resume record.
 type CV struct {
 	Base
-	UserID         string    `gorm:"uniqueIndex;not null" json:"userId"`
-	FullName       string    `json:"fullName"`
-	JobTitle       string    `json:"jobTitle"`
-	Email          string    `json:"email"`
-	Location       string    `json:"location"`
-	Phone          string    `json:"phone"`
-	LinkedIn       string    `json:"linkedin"`
-	Summary        string    `gorm:"type:text" json:"summary"`
-	TargetRole     string    `json:"targetRole"`
-	TargetCompany  string    `json:"targetCompany"`
-	AutoTailor     bool      `gorm:"default:true" json:"autoTailor"`
-	JobDescription string    `gorm:"type:text" json:"jobDescription"`
-	Score          int       `gorm:"default:0" json:"score"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	UserID         string         `gorm:"uniqueIndex;not null" json:"userId"`
+	FullName       string         `json:"fullName"`
+	JobTitle       string         `json:"jobTitle"`
+	Email          string         `json:"email"`
+	Location       string         `json:"location"`
+	Phone          string         `json:"phone"`
+	LinkedIn       string         `json:"linkedin"`
+	Summary        string         `gorm:"type:text" json:"summary"`
+	TargetRole     string         `json:"targetRole"`
+	TargetCompany  string         `json:"targetCompany"`
+	AutoTailor     bool           `gorm:"default:true" json:"autoTailor"`
+	JobDescription string         `gorm:"type:text" json:"jobDescription"`
+	Skills         pq.StringArray `gorm:"type:text[]" json:"skills"`
+
+	// The originally uploaded file, kept so it can be re-downloaded or sent
+	// as-is with an application. Empty when the CV was built by hand.
+	SourceFileKey  string `json:"-"`
+	SourceFileName string `json:"sourceFileName"`
+	SourceFileSize int64  `json:"sourceFileSize"`
+
+	// Daily cap on AI parses, to bound cost.
+	ParsesToday int       `json:"-"`
+	ParsesDate  string    `json:"-"`
+	Score       int       `gorm:"default:0" json:"score"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 
 	Experiences []CVExperience `gorm:"foreignKey:CVID;references:ID" json:"experiences"`
 	ATSChecks   []ATSCheck     `gorm:"foreignKey:CVID;references:ID" json:"atsChecks"`
+	Education   []CVEducation  `gorm:"foreignKey:CVID;references:ID" json:"education"`
 }
 
 type CVExperience struct {
@@ -44,5 +56,14 @@ type ATSCheck struct {
 	CVID   string `gorm:"index;not null" json:"cvId"`
 	Label  string `json:"label"`
 	Status string `json:"status"` // ok, warn, bad
+	Sort   int    `json:"sort"`
+}
+
+type CVEducation struct {
+	Base
+	CVID   string `gorm:"index;not null" json:"cvId"`
+	School string `json:"school"`
+	Degree string `json:"degree"`
+	Dates  string `json:"dates"`
 	Sort   int    `json:"sort"`
 }

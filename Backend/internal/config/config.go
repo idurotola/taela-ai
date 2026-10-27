@@ -39,6 +39,27 @@ type Config struct {
 	MarketingFromAddress string
 	MarketingFromName    string
 
+	// AI (internal/ai). AIProvider is "anthropic", "gemini" or "bedrock";
+	// blank disables AI features and CV upload falls back to manual entry.
+	AIProvider      string
+	AIModel         string
+	AIBaseURL       string // optional: an API gateway/proxy in front of the provider
+	AnthropicAPIKey string
+	GeminiAPIKey    string
+	AWSRegion       string // bedrock
+
+	// File storage (internal/storage) for uploaded CVs. StorageProvider is
+	// "r2" or "local" (development only); blank means local outside
+	// production and *disabled* in production, so files are never silently
+	// written to a container disk that the next deploy wipes.
+	StorageProvider string
+	StorageLocalDir string
+	R2AccountID     string
+	R2Endpoint      string
+	R2AccessKeyID   string
+	R2SecretKey     string
+	R2Bucket        string
+
 	MailtrapAPIToken  string
 	MailtrapSandbox   bool
 	MailtrapSandboxID int64
@@ -67,6 +88,21 @@ func Load() Config {
 		// falls back to EmailFromAddress/EmailFromName.
 		MarketingFromAddress: getEnv("MARKETING_FROM_ADDRESS", ""),
 		MarketingFromName:    getEnv("MARKETING_FROM_NAME", ""),
+
+		AIProvider:      strings.ToLower(getEnv("AI_PROVIDER", "")),
+		AIModel:         getEnv("AI_MODEL", ""),
+		AIBaseURL:       getEnv("AI_BASE_URL", ""),
+		AnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
+		GeminiAPIKey:    getEnv("GEMINI_API_KEY", ""),
+		AWSRegion:       getEnv("AWS_REGION", ""),
+
+		StorageProvider: strings.ToLower(getEnv("STORAGE_PROVIDER", "")),
+		StorageLocalDir: getEnv("STORAGE_LOCAL_DIR", "./data/uploads"),
+		R2AccountID:     getEnv("R2_ACCOUNT_ID", ""),
+		R2Endpoint:      getEnv("R2_ENDPOINT", ""),
+		R2AccessKeyID:   getEnv("R2_ACCESS_KEY_ID", ""),
+		R2SecretKey:     getEnv("R2_SECRET_ACCESS_KEY", ""),
+		R2Bucket:        getEnv("R2_BUCKET", ""),
 
 		MailtrapAPIToken: getEnv("MAILTRAP_API_TOKEN", ""),
 		// false (the default) sends for real, through either the

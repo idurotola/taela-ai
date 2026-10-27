@@ -51,3 +51,77 @@ func firstNameOr(name, fallback string) string {
 	}
 	return fields[0]
 }
+
+// simpleMail renders the shared shape of the notification emails below:
+// greeting, a few paragraphs, and an optional call-to-action link.
+func (s *Service) simpleMail(ctx context.Context, to Recipient, subject, category string, paragraphs []string, linkLabel, link string) error {
+	name := firstNameOr(to.Name, "there")
+
+	var text strings.Builder
+	var htmlBody strings.Builder
+	fmt.Fprintf(&text, "Hi %s,\n\n", name)
+	fmt.Fprintf(&htmlBody, "<p>Hi %s,</p>", html.EscapeString(name))
+	for _, p := range paragraphs {
+		text.WriteString(p + "\n\n")
+		fmt.Fprintf(&htmlBody, "<p>%s</p>", html.EscapeString(p))
+	}
+	if link != "" {
+		fmt.Fprintf(&text, "%s: %s\n\n", linkLabel, link)
+		fmt.Fprintf(&htmlBody, `<p><a href="%s">%s</a></p>`, html.EscapeString(link), html.EscapeString(linkLabel))
+	}
+	text.WriteString("— TaelaAI")
+	htmlBody.WriteString("<p>— TaelaAI</p>")
+	return s.SendTransactional(ctx, to, subject, text.String(), htmlBody.String(), category)
+}
+
+// SendGuestApplicationVerification asks someone who applied without an
+// account to confirm their email; the application isn't delivered until they do.
+func (s *Service) SendGuestApplicationVerification(ctx context.Context, to Recipient, jobTitle, company, link string) error {
+	return s.simpleMail(ctx, to, "Confirm your application to "+jobTitle, "application-verify",
+		[]string{
+			fmt.Sprintf("You applied for %s at %s. Please confirm your email address to send your application — it isn't delivered to the employer until you do. The link expires in 48 hours.", jobTitle, company),
+			"If you didn't apply, you can ignore this email and nothing will be sent.",
+		}, "Confirm and send my application", link)
+}
+
+// SendApplicationReceived tells a candidate their application was delivered.
+func (s *Service) SendApplicationReceived(ctx context.Context, to Recipient, jobTitle, company, trackLink string) error {
+	return s.simpleMail(ctx, to, "Application sent: "+jobTitle, "application-received",
+		[]string{fmt.Sprintf("Your application for %s at %s has been delivered. We'll email you when its status changes.", jobTitle, company)},
+		"Track your application", trackLink)
+}
+
+// SendNewApplicant tells a recruiter someone applied to their posting.
+func (s *Service) SendNewApplicant(ctx context.Context, to Recipient, jobTitle, applicantName, link string) error {
+	return s.simpleMail(ctx, to, "New applicant for "+jobTitle, "new-applicant",
+		[]string{fmt.Sprintf("%s applied for %s.", applicantName, jobTitle)},
+		"Review the applicant", link)
+}
+
+// stageCopy is the candidate-facing wording for each pipeline stage.
+var stageCopy = map[string]string{
+	"review":       "is now under review",
+	"shortlisted":  "has been shortlisted — great news",
+	"interviewing": "has moved to the interview stage",
+	"offered":      "has resulted in an offer — congratulations",
+	"rejected":     "was not successful this time. Thank you for your interest, and we wish you the best in your search",
+}
+
+// SendApplicationUpdate tells a candidate their application changed stage.
+// Stages with no candidate-facing wording (e.g. "applied") send nothing.
+func (s *Service) SendApplicationUpdate(ctx context.Context, to Recipient, jobTitle, company, stage, link string) error {
+	copy, ok := stageCopy[stage]
+	if !ok {
+		return nil
+	}
+	return s.simpleMail(ctx, to, "Update on your application: "+jobTitle, "application-update",
+		[]string{fmt.Sprintf("Your application for %s at %s %s.", jobTitle, company, copy)},
+		"View your applications", link)
+}
+
+// SendRecruiterVerification proves control of a company email address.
+func (s *Service) SendRecruiterVerification(ctx context.Context, to Recipient, company, link string) error {
+	return s.simpleMail(ctx, to, "Verify "+company+" on TaelaAI", "recruiter-verify",
+		[]string{fmt.Sprintf("Confirm this is your work address to verify %s on TaelaAI. Once verified you can publish jobs. The link expires in 48 hours.", company)},
+		"Verify my company", link)
+}

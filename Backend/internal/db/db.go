@@ -44,6 +44,9 @@ func AutoMigrate(gormDB *gorm.DB) error {
 		&models.PasswordResetToken{},
 		&models.RecruiterProfile{},
 		&models.SavedJob{},
+		&models.CVEducation{},
+		&models.GuestApplication{},
+		&models.RecruiterVerification{},
 	); err != nil {
 		return err
 	}
@@ -59,6 +62,12 @@ func backfill(gormDB *gorm.DB) error {
 		UPDATE users u SET email = lower(email)
 		WHERE email <> lower(email)
 		  AND NOT EXISTS (SELECT 1 FROM users o WHERE o.id <> u.id AND lower(o.email) = lower(u.email))`).Error; err != nil {
+		return err
+	}
+
+	// Recruiter profiles that predate verification are grandfathered in as
+	// verified; ones created since start as "unverified" explicitly.
+	if err := gormDB.Exec(`UPDATE recruiter_profiles SET verification_status = 'verified', verified_at = now() WHERE verification_status IS NULL OR verification_status = ''`).Error; err != nil {
 		return err
 	}
 

@@ -8,14 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"taela-ai-backend/internal/ai"
 	"taela-ai-backend/internal/auth"
 	"taela-ai-backend/internal/config"
 	"taela-ai-backend/internal/email"
 	"taela-ai-backend/internal/handlers"
 	"taela-ai-backend/internal/ratelimit"
+	"taela-ai-backend/internal/storage"
 )
 
-func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
+func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.Store, aiProvider ai.Provider) *gin.Engine {
 	r := gin.Default()
 
 	// The rate limiter keys on the client IP. By default gin trusts every
@@ -37,10 +39,11 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
 	authH := &handlers.AuthHandler{DB: db, JWTSecret: cfg.JWTSecret, Email: emailSvc, FrontendURL: cfg.FrontendURL}
-	recruiterH := &handlers.RecruiterHandler{DB: db, Email: emailSvc, JWTSecret: cfg.JWTSecret}
-	jobsH := &handlers.JobsHandler{DB: db}
+	recruiterH := &handlers.RecruiterHandler{DB: db, Email: emailSvc, JWTSecret: cfg.JWTSecret, Store: store, FrontendURL: cfg.FrontendURL}
+	guestH := &handlers.GuestHandler{DB: db, Store: store, Email: emailSvc, JWTSecret: cfg.JWTSecret, FrontendURL: cfg.FrontendURL}
+	jobsH := &handlers.JobsHandler{DB: db, Store: store, Email: emailSvc, FrontendURL: cfg.FrontendURL}
 	appsH := &handlers.ApplicationsHandler{DB: db}
-	cvH := &handlers.CVHandler{DB: db}
+	cvH := &handlers.CVHandler{DB: db, Store: store, AI: aiProvider}
 	dashH := &handlers.DashboardHandler{DB: db}
 	adminH := &handlers.AdminHandler{DB: db, Email: emailSvc}
 	settingsH := &handlers.SettingsHandler{DB: db}
@@ -63,11 +66,20 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 		api.GET("/public/jobs", publicLimit, jobsH.PublicIndex)
 		api.GET("/public/jobs/:slug", publicLimit, jobsH.PublicGet)
 
+		// Applying without an account: held until the applicant confirms
+		// their email. Tight limits — each call stores a file and sends mail.
+		guestLimit := ratelimit.New(5, time.Minute).Middleware()
+		api.POST("/public/jobs/:slug/apply", guestLimit, guestH.Apply)
+		api.POST("/public/applications/confirm", authLimit, guestH.Confirm)
+		api.POST("/public/recruiter/verify", authLimit, recruiterH.ConfirmVerification)
+
 		admin := api.Group("/admin")
 		admin.Use(auth.RequireAdmin(cfg.AdminToken))
 		{
 			admin.POST("/jobs/sync", adminH.SyncJobs)
 			admin.POST("/email/marketing", adminH.SendMarketingEmail)
+			admin.GET("/recruiters/pending", adminH.PendingRecruiters)
+			admin.POST("/recruiters/:userId/verify", adminH.VerifyRecruiter)
 		}
 
 		protected := api.Group("")
@@ -93,6 +105,10 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 			protected.GET("/cv", cvH.Get)
 			protected.PUT("/cv", cvH.Update)
 			protected.POST("/cv/analyze", cvH.Analyze)
+			protected.PUT("/cv/content", cvH.ReplaceContent)
+			protected.POST("/cv/upload", cvH.Upload)
+			protected.GET("/cv/file", cvH.DownloadFile)
+			protected.DELETE("/cv/file", cvH.DeleteFile)
 			protected.POST("/cv/experiences", cvH.AddExperience)
 			protected.DELETE("/cv/experiences/:expID", cvH.DeleteExperience)
 
@@ -109,7 +125,10 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 			recruiterProtected.POST("/jobs", recruiterH.CreateJob)
 			recruiterProtected.PATCH("/jobs/:id", recruiterH.UpdateJob)
 			recruiterProtected.GET("/jobs/:id/applicants", recruiterH.ListApplicants)
+			recruiterProtected.GET("/applications/:id", recruiterH.GetApplicant)
+			recruiterProtected.GET("/applications/:id/cv-file", recruiterH.DownloadApplicantCV)
 			recruiterProtected.PATCH("/applications/:id", recruiterH.UpdateApplicantStage)
+			recruiterProtected.POST("/verification/request", recruiterH.RequestVerification)
 		}
 	}
 
