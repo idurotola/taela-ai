@@ -7,7 +7,7 @@ import StatCard from '@/components/ui/StatCard';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { api } from '@/lib/api';
 import { NetworkContact } from '@/types';
-import { Send, UserPlus, Search } from 'lucide-react';
+import { Send, Search } from 'lucide-react';
 
 const FIT_STYLE = {
   high:   { bg: '#B3E8DC', color: '#1F7D65', label: 'High referral fit' },
@@ -62,38 +62,33 @@ export default function NetworkView() {
         <StatCard label="Mutual Connections" value={contacts.reduce((s, c) => s + c.mutualConnections, 0)} trend="Across suggested contacts" trendUp accent="blue" />
       </div>
 
-      {/* Search + header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div
+      {/* Search */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: '#fff',
+          border: '1px solid #E4E4E4',
+          borderRadius: 8,
+          padding: '8px 14px',
+          marginBottom: 16,
+        }}
+      >
+        <Search size={14} color="#6B6B6B" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or company…"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '1px solid #E4E4E4',
-            borderRadius: 8,
-            padding: '8px 14px',
+            border: 'none',
+            background: 'transparent',
+            fontFamily: 'Nunito, sans-serif',
+            fontSize: 13,
+            outline: 'none',
             flex: 1,
           }}
-        >
-          <Search size={14} color="#6B6B6B" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or company…"
-            style={{
-              border: 'none',
-              background: 'transparent',
-              fontFamily: 'Nunito, sans-serif',
-              fontSize: 13,
-              outline: 'none',
-              flex: 1,
-            }}
-          />
-        </div>
-        <Button variant="primary" icon={<UserPlus size={14} />}>
-          Find More Connections
-        </Button>
+        />
       </div>
 
       <div style={{ fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 700, marginBottom: 12 }}>

@@ -11,12 +11,14 @@ const TokenTTL = 7 * 24 * time.Hour
 
 type Claims struct {
 	UserID string `json:"sub"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID, secret string) (string, error) {
+func GenerateToken(userID, role, secret string) (string, error) {
 	claims := Claims{
 		UserID: userID,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

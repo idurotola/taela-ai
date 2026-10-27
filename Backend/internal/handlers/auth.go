@@ -51,7 +51,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		return
 	}
 
-	user := models.User{Name: req.Name, Email: req.Email, PasswordHash: hash}
+	user := models.User{Name: req.Name, Email: req.Email, PasswordHash: hash, Role: models.RoleJobSeeker}
 	if err := h.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create account"})
 		return
@@ -65,7 +65,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		log.Printf("failed to send welcome email to %s: %v", user.Email, err)
 	}
 
-	token, err := auth.GenerateToken(user.ID, h.JWTSecret)
+	token, err := auth.GenerateToken(user.ID, user.Role, h.JWTSecret)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
 		return
@@ -97,7 +97,7 @@ func (h *AuthHandler) Signin(c *gin.Context) {
 		return
 	}
 
-	token, err := auth.GenerateToken(user.ID, h.JWTSecret)
+	token, err := auth.GenerateToken(user.ID, user.Role, h.JWTSecret)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
 		return

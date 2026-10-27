@@ -8,6 +8,9 @@ import type {
   JobListing,
   MarketInsight,
   NetworkContact,
+  RecruiterApplicant,
+  RecruiterJob,
+  RecruiterProfile,
   User,
   UserSettings,
 } from '@/types';
@@ -84,6 +87,8 @@ export const api = {
 
   jobs: () => request<JobListing[]>('/api/jobs'),
   applyToJob: (id: string) => request<Application>(`/api/jobs/${id}/apply`, { method: 'POST' }),
+  saveJob: (id: string) => request<void>(`/api/jobs/${id}/save`, { method: 'POST' }),
+  unsaveJob: (id: string) => request<void>(`/api/jobs/${id}/save`, { method: 'DELETE' }),
 
   applications: () => request<Application[]>('/api/applications'),
   createApplication: (data: { title: string; company: string; location?: string; platform?: string }) =>
@@ -108,4 +113,20 @@ export const api = {
 
   dashboardSummary: () => request<DashboardSummary>('/api/dashboard/summary'),
   analyticsSummary: () => request<AnalyticsSummary>('/api/analytics/summary'),
+
+  recruiter: {
+    signup: (name: string, email: string, password: string) =>
+      request<AuthResponse>('/api/recruiter/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
+    profile: () => request<RecruiterProfile>('/api/recruiter/profile'),
+    updateProfile: (data: Partial<Omit<RecruiterProfile, 'id'>>) =>
+      request<RecruiterProfile>('/api/recruiter/profile', { method: 'PUT', body: JSON.stringify(data) }),
+    jobs: () => request<RecruiterJob[]>('/api/recruiter/jobs'),
+    createJob: (data: { title: string; company: string; location?: string; type?: string; salary?: string; description?: string; expiresAt: string }) =>
+      request<RecruiterJob>('/api/recruiter/jobs', { method: 'POST', body: JSON.stringify(data) }),
+    updateJob: (id: string, data: Partial<{ title: string; company: string; location: string; type: string; salary: string; description: string; expiresAt: string }>) =>
+      request<RecruiterJob>(`/api/recruiter/jobs/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    applicants: (jobId: string) => request<RecruiterApplicant[]>(`/api/recruiter/jobs/${jobId}/applicants`),
+    updateApplicantStage: (applicationId: string, stage: string) =>
+      request<RecruiterApplicant>(`/api/recruiter/applications/${applicationId}`, { method: 'PATCH', body: JSON.stringify({ stage }) }),
+  },
 };

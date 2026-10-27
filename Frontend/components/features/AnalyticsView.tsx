@@ -4,11 +4,9 @@ import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
 import SectionHeader from '@/components/ui/SectionHeader';
-import Button from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import { PLATFORM_COLORS } from '@/lib/utils';
 import { AnalyticsSummary, MarketInsight } from '@/types';
-import { TrendingUp } from 'lucide-react';
 
 const ACCENT_BORDER: Record<string, string> = {
   yellow: '#F5C535',
@@ -124,9 +122,7 @@ export default function AnalyticsView() {
       <div className="two-one-col">
         {/* Market Insights */}
         <Card>
-          <SectionHeader title="Market Insights" action={
-            <Button size="sm" variant="outline" icon={<TrendingUp size={12} />}>Full Report</Button>
-          } />
+          <SectionHeader title="Market Insights" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {insights.map((insight) => (
               <div

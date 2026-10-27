@@ -44,9 +44,10 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 	var jobs []models.Job
 	h.DB.Where("active = ?", true).Order("match_score desc").Limit(3).Find(&jobs)
 	applied := appliedJobIDSet(h.DB, userID)
+	saved := savedJobIDSet(h.DB, userID)
 	bestMatches := make([]dto.JobDTO, 0, len(jobs))
 	for _, j := range jobs {
-		bestMatches = append(bestMatches, dto.FromJob(j, applied[j.ID]))
+		bestMatches = append(bestMatches, dto.FromJob(j, applied[j.ID], saved[j.ID]))
 	}
 
 	var activities []models.Activity

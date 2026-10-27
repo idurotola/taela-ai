@@ -24,6 +24,7 @@ export interface JobListing {
   posted: string;
   sourceUrl?: string;
   applied?: boolean;
+  saved?: boolean;
 }
 
 export interface Application {
@@ -68,6 +69,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role: 'jobseeker' | 'recruiter';
 }
 
 export interface AuthResponse {
@@ -149,4 +151,38 @@ export interface AnalyticsSummary {
   platformStats: PlatformStat[];
   weeklyActivity: WeeklyPoint[];
   funnel: FunnelStep[];
+}
+
+export type RecruiterKind = 'independent' | 'employer';
+
+export interface RecruiterProfile {
+  id: string;
+  type: RecruiterKind;
+  specialty?: string;
+  bio?: string;
+  companyName?: string;
+  companyWebsite?: string;
+  industry?: string;
+}
+
+export interface RecruiterJob {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  salary: string;
+  description: string;
+  status: 'open' | 'expired';
+  expiresAt: string;
+  createdAt: string;
+  applicantCount: number;
+}
+
+export interface RecruiterApplicant {
+  id: string;
+  name: string;
+  email: string;
+  stage: Application['stage'];
+  appliedAt: string;
 }

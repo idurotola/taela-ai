@@ -7,7 +7,7 @@ import Tag, { TagVariant } from '@/components/ui/Tag';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { api, ApiError } from '@/lib/api';
 import { CV } from '@/types';
-import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy } from 'lucide-react';
+import { Check, AlertTriangle, X, Wand2, Download, Plus, Copy, Trash2 } from 'lucide-react';
 import { buildCvText, downloadCvPdf, downloadCvDocx } from '@/lib/cvExport';
 
 const STATUS_ICON = {
@@ -49,6 +49,9 @@ export default function CVBuilderView() {
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addingExp, setAddingExp] = useState(false);
+  const [showExpForm, setShowExpForm] = useState(false);
+  const [expForm, setExpForm] = useState({ role: '', company: '', dates: '', bullets: '' });
+  const [expError, setExpError] = useState('');
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingDocx, setExportingDocx] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -102,21 +105,23 @@ export default function CVBuilderView() {
     }
   };
 
-  const handleAddExperience = async () => {
-    const role = window.prompt('Role title?');
-    if (!role) return;
-    const company = window.prompt('Company?');
-    if (!company) return;
-    const dates = window.prompt('Dates (e.g. "Jan 2022 – Present")?') || '';
-    const bulletsRaw = window.prompt('Achievements, separated by "|"?') || '';
-    const bullets = bulletsRaw.split('|').map(b => b.trim()).filter(Boolean);
+  const handleAddExperience = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setExpError('');
+    if (!expForm.role.trim() || !expForm.company.trim()) {
+      setExpError('Role and company are required.');
+      return;
+    }
+    const bullets = expForm.bullets.split('\n').map(b => b.trim()).filter(Boolean);
 
     setAddingExp(true);
     try {
-      const exp = await api.addCVExperience({ role, company, dates, bullets });
+      const exp = await api.addCVExperience({ role: expForm.role, company: expForm.company, dates: expForm.dates, bullets });
       setCv(prev => prev ? { ...prev, experiences: [...prev.experiences, exp] } : prev);
+      setExpForm({ role: '', company: '', dates: '', bullets: '' });
+      setShowExpForm(false);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to add experience.');
+      setExpError(err instanceof ApiError ? err.message : 'Failed to add experience.');
     } finally {
       setAddingExp(false);
     }
@@ -151,6 +156,16 @@ export default function CVBuilderView() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError('Failed to copy to clipboard.');
+    }
+  };
+
+  const handleDeleteExperience = async (id: string) => {
+    if (!window.confirm('Remove this experience?')) return;
+    setCv(prev => prev ? { ...prev, experiences: prev.experiences.filter(e => e.id !== id) } : prev);
+    try {
+      await api.deleteCVExperience(id);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to remove experience.');
     }
   };
 
@@ -266,8 +281,49 @@ export default function CVBuilderView() {
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SectionHeader title="Work Experience" style={{ marginBottom: 0 }} />
-              <Button size="sm" variant="outline" icon={<Plus size={12} />} onClick={handleAddExperience} disabled={addingExp}>Add</Button>
+              <Button
+                size="sm" variant="outline" icon={<Plus size={12} />}
+                onClick={() => { setShowExpForm(v => !v); setExpError(''); }}
+              >
+                {showExpForm ? 'Cancel' : 'Add'}
+              </Button>
             </div>
+
+            {showExpForm && (
+              <form onSubmit={handleAddExperience} style={{ background: '#F6F6F6', borderRadius: 10, padding: 14, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="cv-fields">
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Role</label>
+                    <input value={expForm.role} onChange={e => setExpForm(f => ({ ...f, role: e.target.value }))} placeholder="Senior Product Manager" style={INPUT_STYLE} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Company</label>
+                    <input value={expForm.company} onChange={e => setExpForm(f => ({ ...f, company: e.target.value }))} placeholder="Acme Inc." style={INPUT_STYLE} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Dates</label>
+                  <input value={expForm.dates} onChange={e => setExpForm(f => ({ ...f, dates: e.target.value }))} placeholder="Jan 2022 – Present" style={INPUT_STYLE} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>Achievements (one per line)</label>
+                  <textarea
+                    value={expForm.bullets}
+                    onChange={e => setExpForm(f => ({ ...f, bullets: e.target.value }))}
+                    rows={3}
+                    placeholder={'Shipped feature X\nLed a team of 4'}
+                    style={{ ...INPUT_STYLE, resize: 'vertical' }}
+                  />
+                </div>
+                {expError && <div style={{ fontSize: 12, color: '#BA1F4F' }}>{expError}</div>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button type="submit" size="sm" variant="primary" disabled={addingExp}>
+                    {addingExp ? 'Adding…' : 'Save experience'}
+                  </Button>
+                </div>
+              </form>
+            )}
+
             {cv.experiences.length === 0 && (
               <div style={{ fontSize: 12, color: '#6B6B6B' }}>No experience added yet — click &quot;Add&quot; to build your work history.</div>
             )}
@@ -278,7 +334,16 @@ export default function CVBuilderView() {
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{exp.role}</div>
                     <div style={{ fontSize: 12, color: '#6B6B6B' }}>{exp.company}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#6B6B6B', textAlign: 'right' }}>{exp.dates}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 11, color: '#6B6B6B', textAlign: 'right' }}>{exp.dates}</div>
+                    <button
+                      onClick={() => handleDeleteExperience(exp.id)}
+                      aria-label="Remove experience"
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#aaa', padding: 2 }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
                 <ul style={{ paddingLeft: 14, margin: 0 }}>
                   {exp.bullets.map((b, i) => (

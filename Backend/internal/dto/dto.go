@@ -13,10 +13,11 @@ type UserDTO struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+	Role  string `json:"role"`
 }
 
 func FromUser(u models.User) UserDTO {
-	return UserDTO{ID: u.ID, Name: u.Name, Email: u.Email}
+	return UserDTO{ID: u.ID, Name: u.Name, Email: u.Email, Role: u.Role}
 }
 
 type AuthResponse struct {
@@ -56,15 +57,16 @@ type JobDTO struct {
 	Posted        string `json:"posted"`
 	SourceURL     string `json:"sourceUrl,omitempty"`
 	Applied       bool   `json:"applied"`
+	Saved         bool   `json:"saved"`
 }
 
-func FromJob(j models.Job, applied bool) JobDTO {
+func FromJob(j models.Job, applied, saved bool) JobDTO {
 	return JobDTO{
 		ID: j.ID, Title: j.Title, Company: j.Company, Location: j.Location,
 		Type: j.Type, Salary: j.Salary, Platform: j.Platform, Industry: j.Industry,
 		MatchScore: j.MatchScore, LogoInitials: j.LogoInitials, LogoColor: j.LogoColor,
 		LogoTextColor: j.LogoTextColor, Posted: humanizeSince(j.PublishedAt),
-		SourceURL: j.SourceURL, Applied: applied,
+		SourceURL: j.SourceURL, Applied: applied, Saved: saved,
 	}
 }
 
@@ -257,4 +259,70 @@ type AnalyticsSummaryDTO struct {
 	PlatformStats  []PlatformStatDTO `json:"platformStats"`
 	WeeklyActivity []WeeklyPointDTO  `json:"weeklyActivity"`
 	Funnel         []FunnelStepDTO   `json:"funnel"`
+}
+
+type RecruiterProfileDTO struct {
+	ID             string `json:"id"`
+	Type           string `json:"type"`
+	Specialty      string `json:"specialty,omitempty"`
+	Bio            string `json:"bio,omitempty"`
+	CompanyName    string `json:"companyName,omitempty"`
+	CompanyWebsite string `json:"companyWebsite,omitempty"`
+	Industry       string `json:"industry,omitempty"`
+}
+
+func FromRecruiterProfile(p models.RecruiterProfile) RecruiterProfileDTO {
+	return RecruiterProfileDTO{
+		ID: p.ID, Type: p.Type, Specialty: p.Specialty, Bio: p.Bio,
+		CompanyName: p.CompanyName, CompanyWebsite: p.CompanyWebsite, Industry: p.Industry,
+	}
+}
+
+// RecruiterJobDTO is a recruiter's own view of a posting, with expiry/status.
+type RecruiterJobDTO struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Company     string `json:"company"`
+	Location    string `json:"location"`
+	Type        string `json:"type"`
+	Salary      string `json:"salary"`
+	Description string `json:"description"`
+	Status         string `json:"status"` // open, expired
+	ExpiresAt      string `json:"expiresAt"`
+	CreatedAt      string `json:"createdAt"`
+	ApplicantCount int    `json:"applicantCount"`
+}
+
+func FromRecruiterJob(j models.Job, applicantCount int) RecruiterJobDTO {
+	status := "open"
+	if !j.IsOpenForApplications() {
+		status = "expired"
+	}
+	expiresAt := ""
+	if j.ExpiresAt != nil {
+		expiresAt = j.ExpiresAt.Format(time.RFC3339)
+	}
+	return RecruiterJobDTO{
+		ID: j.ID, Title: j.Title, Company: j.Company, Location: j.Location,
+		Type: j.Type, Salary: j.Salary, Description: j.Description,
+		Status: status, ExpiresAt: expiresAt, CreatedAt: j.CreatedAt.Format(time.RFC3339),
+		ApplicantCount: applicantCount,
+	}
+}
+
+// RecruiterApplicantDTO is a candidate from the applicant's own account,
+// as seen by the recruiter who owns the job they applied to.
+type RecruiterApplicantDTO struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Stage     string `json:"stage"`
+	AppliedAt string `json:"appliedAt"`
+}
+
+func FromRecruiterApplicant(a models.Application, name, email string) RecruiterApplicantDTO {
+	return RecruiterApplicantDTO{
+		ID: a.ID, Name: name, Email: email, Stage: a.Stage,
+		AppliedAt: a.CreatedAt.Format(time.RFC3339),
+	}
 }

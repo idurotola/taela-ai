@@ -22,7 +22,7 @@ export default function JobSearchView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [applying, setApplying] = useState<Set<string>>(new Set());
-  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [platform, setPlatform] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -52,6 +52,22 @@ export default function JobSearchView() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchJobs().finally(() => setRefreshing(false));
+  };
+
+  const handleToggleSave = async (job: JobListing) => {
+    setSavingId(job.id);
+    try {
+      if (job.saved) {
+        await api.unsaveJob(job.id);
+      } else {
+        await api.saveJob(job.id);
+      }
+      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, saved: !job.saved } : j));
+    } catch {
+      // leave it unmarked so the user can retry
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) return <div style={{ padding: 20, color: '#6B6B6B', fontSize: 13 }}>Loading jobs…</div>;
@@ -126,7 +142,8 @@ export default function JobSearchView() {
         {filtered.map((job: JobListing) => {
           const isApplied = !!job.applied;
           const isApplying = applying.has(job.id);
-          const isSaved = saved.has(job.id);
+          const isSaved = !!job.saved;
+          const isSaving = savingId === job.id;
           return (
             <div
               key={job.id}
@@ -240,14 +257,16 @@ export default function JobSearchView() {
                 ) : (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button
-                      onClick={() => setSaved(prev => { const n = new Set(prev); n.has(job.id) ? n.delete(job.id) : n.add(job.id); return n; })}
+                      onClick={() => handleToggleSave(job)}
+                      disabled={isSaving}
                       style={{
                         padding: '5px 8px',
                         border: '1.5px solid #E4E4E4',
                         borderRadius: 6,
                         background: isSaved ? '#FEF3B0' : '#fff',
-                        cursor: 'pointer',
+                        cursor: isSaving ? 'default' : 'pointer',
                         color: isSaved ? '#977411' : '#6B6B6B',
+                        opacity: isSaving ? 0.6 : 1,
                       }}
                     >
                       <Bookmark size={13} fill={isSaved ? '#977411' : 'none'} />

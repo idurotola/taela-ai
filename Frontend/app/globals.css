@@ -73,7 +73,6 @@ body {
 /* ===== Dashboard responsive layout ===== */
 .sidebar-desktop { display: flex; }
 .bottom-nav      { display: none; }
-.topbar-search   { display: flex; }
 .dash-main       { flex: 1; overflow-y: auto; padding: 24px 28px; }
 
 /* Responsive grids */
@@ -91,7 +90,6 @@ body {
 @media (max-width: 768px) {
   .sidebar-desktop { display: none; }
   .bottom-nav      { display: flex; }
-  .topbar-search   { display: none; }
   .dash-main       { padding: 16px 16px 76px; }
 
   .stats-grid  { grid-template-columns: repeat(2, 1fr); gap: 10px; }

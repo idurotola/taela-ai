@@ -24,6 +24,7 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
 	authH := &handlers.AuthHandler{DB: db, JWTSecret: cfg.JWTSecret, Email: emailSvc, FrontendURL: cfg.FrontendURL}
+	recruiterH := &handlers.RecruiterHandler{DB: db, Email: emailSvc, JWTSecret: cfg.JWTSecret}
 	jobsH := &handlers.JobsHandler{DB: db}
 	appsH := &handlers.ApplicationsHandler{DB: db}
 	contactsH := &handlers.ContactsHandler{DB: db}
@@ -39,6 +40,7 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 		api.POST("/auth/signin", authH.Signin)
 		api.POST("/auth/forgot-password", authH.ForgotPassword)
 		api.POST("/auth/reset-password", authH.ResetPassword)
+		api.POST("/recruiter/auth/signup", recruiterH.Signup)
 		api.GET("/meta/keywords", handlers.Keywords)
 		api.GET("/insights", insightsH.List)
 
@@ -61,6 +63,8 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 
 			protected.GET("/jobs", jobsH.List)
 			protected.POST("/jobs/:id/apply", jobsH.Apply)
+			protected.POST("/jobs/:id/save", jobsH.Save)
+			protected.DELETE("/jobs/:id/save", jobsH.Unsave)
 
 			protected.GET("/applications", appsH.List)
 			protected.POST("/applications", appsH.Create)
@@ -78,6 +82,18 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service) *gin.Engine {
 
 			protected.GET("/dashboard/summary", dashH.Summary)
 			protected.GET("/analytics/summary", dashH.Analytics)
+		}
+
+		recruiterProtected := api.Group("/recruiter")
+		recruiterProtected.Use(auth.RequireAuth(cfg.JWTSecret), auth.RequireRecruiter())
+		{
+			recruiterProtected.GET("/profile", recruiterH.GetProfile)
+			recruiterProtected.PUT("/profile", recruiterH.UpdateProfile)
+			recruiterProtected.GET("/jobs", recruiterH.ListJobs)
+			recruiterProtected.POST("/jobs", recruiterH.CreateJob)
+			recruiterProtected.PATCH("/jobs/:id", recruiterH.UpdateJob)
+			recruiterProtected.GET("/jobs/:id/applicants", recruiterH.ListApplicants)
+			recruiterProtected.PATCH("/applications/:id", recruiterH.UpdateApplicantStage)
 		}
 	}
 

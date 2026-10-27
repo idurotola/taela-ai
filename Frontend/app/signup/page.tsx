@@ -115,6 +115,10 @@ export default function SignUpPage() {
           Already have an account?{' '}
           <Link href="/signin" style={{ fontWeight: 700, color: '#1E4845' }}>Sign in</Link>
         </p>
+        <p style={{ textAlign: 'center', fontSize: 12.5, color: '#6B6B6B', marginTop: 10 }}>
+          Hiring talent?{' '}
+          <Link href="/recruiter/signup" style={{ fontWeight: 700, color: '#1E4845' }}>Post jobs as a recruiter</Link>
+        </p>
       </div>
     </div>
   );

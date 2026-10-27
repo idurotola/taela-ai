@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [activeView, setActiveView] = useState<NavView>('dashboard');
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
+  const [badgeCounts, setBadgeCounts] = useState<Partial<Record<NavView, number>>>({});
 
   useEffect(() => {
     if (!getToken()) {
@@ -35,6 +36,11 @@ export default function DashboardPage() {
         }
       })
       .finally(() => setChecking(false));
+
+    // Real sidebar badge counts, not placeholder literals.
+    Promise.all([api.jobs(), api.contacts()])
+      .then(([jobs, contacts]) => setBadgeCounts({ jobs: jobs.length, network: contacts.length }))
+      .catch(() => {});
   }, [router]);
 
   const handleSignOut = () => {
@@ -68,7 +74,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F0F0F0' }}>
-      <Sidebar activeView={activeView} onNavigate={setActiveView} user={user} onSignOut={handleSignOut} />
+      <Sidebar activeView={activeView} onNavigate={setActiveView} user={user} onSignOut={handleSignOut} badgeCounts={badgeCounts} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Topbar activeView={activeView} />
         <main

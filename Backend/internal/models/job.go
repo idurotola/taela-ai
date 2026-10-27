@@ -2,9 +2,8 @@ package models
 
 import "time"
 
-// Job is a globally shared listing in the job catalog (not owned by a user).
-// Jobs are ingested from external feeds (see internal/jobsync) rather than
-// entered by users, so most fields carry a Source/SourceGUID back-reference.
+// Job is a globally shared listing. Most are ingested from external feeds
+// (internal/jobsync); recruiter-posted ones set RecruiterID and ExpiresAt instead.
 type Job struct {
 	Base
 	Title         string    `gorm:"not null" json:"title"`
@@ -30,6 +29,18 @@ type Job struct {
 	LastSeenAt    time.Time  `json:"-"`
 	InactiveSince *time.Time `json:"-"`
 
+	// Recruiter-posted jobs only; nil for feed-ingested jobs.
+	RecruiterID *string    `gorm:"index" json:"-"`
+	ExpiresAt   *time.Time `json:"-"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// IsOpenForApplications: active, and not past its expiry if one is set.
+func (j Job) IsOpenForApplications() bool {
+	if !j.Active {
+		return false
+	}
+	return j.ExpiresAt == nil || j.ExpiresAt.After(time.Now())
 }

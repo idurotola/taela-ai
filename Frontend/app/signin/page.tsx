@@ -17,9 +17,9 @@ export default function SignInPage() {
     setError('');
     setLoading(true);
     try {
-      const { token } = await api.signin(email, password);
+      const { token, user } = await api.signin(email, password);
       setToken(token);
-      router.push('/dashboard');
+      router.push(user.role === 'recruiter' ? '/recruiter/dashboard' : '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
     } finally {
@@ -104,6 +104,10 @@ export default function SignInPage() {
         <p style={{ textAlign: 'center', fontSize: 13, color: '#6B6B6B', marginTop: 24 }}>
           Don&apos;t have an account?{' '}
           <Link href="/signup" style={{ fontWeight: 700, color: '#1E4845' }}>Sign up</Link>
+        </p>
+        <p style={{ textAlign: 'center', fontSize: 12.5, color: '#6B6B6B', marginTop: 10 }}>
+          Hiring talent?{' '}
+          <Link href="/recruiter/signup" style={{ fontWeight: 700, color: '#1E4845' }}>Post jobs as a recruiter</Link>
         </p>
       </div>
     </div>

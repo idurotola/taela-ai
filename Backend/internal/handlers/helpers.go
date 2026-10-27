@@ -58,3 +58,13 @@ func appliedJobIDSet(db *gorm.DB, userID string) map[string]bool {
 	}
 	return set
 }
+
+func savedJobIDSet(db *gorm.DB, userID string) map[string]bool {
+	var saved []models.SavedJob
+	db.Where("user_id = ?", userID).Find(&saved)
+	set := map[string]bool{}
+	for _, s := range saved {
+		set[s.JobID] = true
+	}
+	return set
+}
