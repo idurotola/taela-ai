@@ -8,7 +8,6 @@ const VIEW_TITLES: Record<NavView, string> = {
   jobs: 'Job Search',
   tracker: 'Application Tracker',
   analytics: 'Analytics',
-  autoapply: 'Auto-Apply',
   settings: 'Settings',
 };
 

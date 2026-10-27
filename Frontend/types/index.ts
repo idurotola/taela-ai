@@ -1,4 +1,4 @@
-export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'autoapply' | 'settings';
+export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'settings';
 
 export interface StatCard {
   label: string;

@@ -96,7 +96,7 @@ export default function AutoApplyView() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 820 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
           <SectionHeader title="Auto-Apply" style={{ marginBottom: 0 }} />

@@ -7,7 +7,6 @@ import {
   Search,
   KanbanSquare,
   BarChart2,
-  Zap,
   Settings,
   Sparkles,
   LogOut,
@@ -26,7 +25,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'jobs', label: 'Job Search', icon: <Search size={16} />, badgeColor: '#E83567' },
   { id: 'tracker', label: 'Applications', icon: <KanbanSquare size={16} /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart2 size={16} /> },
-  { id: 'autoapply', label: 'Auto-Apply', icon: <Zap size={16} /> },
 ];
 
 interface SidebarProps {
