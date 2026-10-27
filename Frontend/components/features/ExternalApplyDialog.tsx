@@ -23,6 +23,8 @@ interface Props {
   onClose: () => void;
   /** Called once the job has been added to the tracker as "Prepared". */
   onPrepared?: () => void;
+  /** Called with the AI score when the candidate runs "Check my fit". */
+  onScore?: (score: number) => void;
 }
 
 /**
@@ -31,7 +33,7 @@ interface Props {
  * the source site, and the job sits in the tracker as "Prepared" until they
  * confirm they've submitted.
  */
-export default function ExternalApplyDialog({ job, onClose, onPrepared }: Props) {
+export default function ExternalApplyDialog({ job, onClose, onPrepared, onScore }: Props) {
   const [cv, setCv] = useState<CV | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<'pdf' | 'docx' | null>(null);
@@ -115,12 +117,12 @@ export default function ExternalApplyDialog({ job, onClose, onPrepared }: Props)
 
         {cvIsEmpty && (
           <div style={{ fontSize: 13, color: '#977411', background: '#FEF3B0', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
-            Your CV is still empty. Fill it in under <strong>CV Builder</strong> first so you have something to send.
+            Your CV is still empty. Fill it in under <strong>Profile</strong> first so you have something to send.
           </div>
         )}
 
         <div style={{ marginBottom: 14 }}>
-          <JobFitPanel jobId={job.id} onChange={(f) => setTailored(f.tailored)} />
+          <JobFitPanel jobId={job.id} onChange={(f) => setTailored(f.tailored)} onMatch={onScore} />
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>

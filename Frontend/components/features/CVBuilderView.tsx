@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Tag, { TagVariant } from '@/components/ui/Tag';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { api, ApiError } from '@/lib/api';
 import { CV } from '@/types';
@@ -18,8 +17,6 @@ const STATUS_ICON = {
   warn: <AlertTriangle size={14} color="#F5C535" />,
   bad:  <X size={14} color="#E83567" />,
 };
-
-const TAG_CYCLE: TagVariant[] = ['teal', 'teal', 'yellow', 'yellow', 'grey', 'grey', 'pink', 'blue', 'teal', 'yellow'];
 
 const INPUT_STYLE = {
   width: '100%',
@@ -46,7 +43,6 @@ const PERSONAL_FIELDS: { key: FieldKey; label: string; type: string }[] = [
 
 export default function CVBuilderView() {
   const [cv, setCv] = useState<CV | null>(null);
-  const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -63,11 +59,8 @@ export default function CVBuilderView() {
   const [savingExp, setSavingExp] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.cv(), api.keywords()])
-      .then(([cvData, kw]) => {
-        setCv(cvData);
-        setKeywords(kw);
-      })
+    api.cv()
+      .then(setCv)
       .catch(() => setError('Could not load your CV right now.'))
       .finally(() => setLoading(false));
   }, []);
@@ -97,11 +90,8 @@ export default function CVBuilderView() {
   const handleAnalyze = async () => {
     setAnalyzing(true);
     try {
-      // Persist the latest tailoring inputs so the server scores against them.
-      await api.updateCV({
-        summary: cv.summary, targetRole: cv.targetRole, targetCompany: cv.targetCompany,
-        jobDescription: cv.jobDescription, autoTailor: cv.autoTailor,
-      });
+      // Persist the summary so the check scores what's on screen.
+      await api.updateCV({ summary: cv.summary });
       const analyzed = await api.analyzeCV();
       setCv(analyzed);
     } catch (err) {
@@ -204,12 +194,6 @@ export default function CVBuilderView() {
     }
   };
 
-  const handleAutoAddKeywords = () => {
-    const missing = keywords.filter(kw => !cv.jobDescription.toLowerCase().includes(kw.toLowerCase()));
-    if (missing.length === 0) return;
-    setField('jobDescription', [cv.jobDescription, missing.join(', ')].filter(Boolean).join('\n'));
-  };
-
   const score = cv.score;
   const scoreColor = score >= 90 ? '#2EAA8A' : score >= 75 ? '#F5C535' : '#E83567';
 
@@ -252,67 +236,6 @@ export default function CVBuilderView() {
                 style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 80 }}
               />
             </div>
-          </Card>
-
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 9, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 700, marginBottom: 3 }}>AI Feature</div>
-                <div style={{ fontSize: 15, fontWeight: 800 }}>Auto-Tailor for Role</div>
-              </div>
-              <button
-                onClick={() => setField('autoTailor', !cv.autoTailor)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  background: cv.autoTailor ? '#B3E8DC' : '#F0F0F0',
-                  color: cv.autoTailor ? '#1F7D65' : '#6B6B6B',
-                  border: 'none',
-                  borderRadius: 20,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'Nunito, sans-serif',
-                }}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: cv.autoTailor ? '#2EAA8A' : '#ccc', display: 'block' }} />
-                Auto-tailor {cv.autoTailor ? 'ON' : 'OFF'}
-              </button>
-            </div>
-            <div className="cv-fields" style={{ marginBottom: 10 }}>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
-                  Role Applying For
-                </label>
-                <input value={cv.targetRole} onChange={(e) => setField('targetRole', e.target.value)} style={INPUT_STYLE} />
-              </div>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
-                  Company
-                </label>
-                <input value={cv.targetCompany} onChange={(e) => setField('targetCompany', e.target.value)} style={INPUT_STYLE} />
-              </div>
-            </div>
-            <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6B6B6B', display: 'block', marginBottom: 5 }}>
-              Job Description (paste to optimise)
-            </label>
-            <textarea
-              value={cv.jobDescription}
-              onChange={(e) => setField('jobDescription', e.target.value)}
-              placeholder="Paste the job description here to automatically optimise your CV keywords and summary…"
-              style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 70, marginBottom: 10 }}
-            />
-            <Button
-              variant="teal"
-              fullWidth
-              icon={<Wand2 size={14} />}
-              onClick={handleAnalyze}
-              disabled={analyzing}
-            >
-              {analyzing ? 'Analysing…' : 'AI Tailor This CV'}
-            </Button>
           </Card>
 
           <Card>
@@ -442,8 +365,12 @@ export default function CVBuilderView() {
               </div>
             </div>
 
+            <Button variant="outline" fullWidth icon={<Wand2 size={13} />} onClick={handleAnalyze} disabled={analyzing} style={{ marginBottom: 12 }}>
+              {analyzing ? 'Checking…' : 'Re-check my CV'}
+            </Button>
+
             {cv.atsChecks.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#6B6B6B' }}>Run &quot;AI Tailor This CV&quot; to generate your ATS checklist.</div>
+              <div style={{ fontSize: 12, color: '#6B6B6B' }}>Run the check to see how ATS-friendly your CV is. To tailor it for a specific job, open that job in Job Search.</div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {cv.atsChecks.map((check) => (
@@ -464,21 +391,6 @@ export default function CVBuilderView() {
                 ))}
               </ul>
             )}
-          </Card>
-
-          <Card>
-            <SectionHeader title="Keyword Suggestions" />
-            <p style={{ fontSize: 12, color: '#6B6B6B', marginBottom: 10 }}>Add these to improve your ATS score:</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-              {keywords.map((kw, i) => (
-                <Tag key={kw} variant={TAG_CYCLE[i % TAG_CYCLE.length]}>
-                  {kw}
-                </Tag>
-              ))}
-            </div>
-            <Button variant="primary" fullWidth icon={<Wand2 size={13} />} onClick={handleAutoAddKeywords}>
-              Auto-add Missing Keywords
-            </Button>
           </Card>
 
           <Card>

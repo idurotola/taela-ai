@@ -1,4 +1,4 @@
-export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'autoapply' | 'settings';
+export type NavView = 'dashboard' | 'cv' | 'jobs' | 'tracker' | 'analytics' | 'settings';
 
 export interface StatCard {
   label: string;
@@ -26,6 +26,9 @@ export interface JobListing {
   slug: string;
   applied?: boolean;
   saved?: boolean;
+  /** ATS match vs. the signed-in candidate's CV: 'ai' = a score they ran, 'estimate' = free keyword estimate. */
+  atsMatch?: number;
+  atsMatchSource?: 'ai' | 'estimate';
 }
 
 export interface Application {
@@ -197,6 +200,8 @@ export interface RecruiterJob {
 
 export interface RecruiterApplicant {
   id: string;
+  jobId: string;
+  jobTitle: string;
   name: string;
   email: string;
   stage: Exclude<Application['stage'], 'prepared'>;

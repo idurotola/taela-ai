@@ -11,7 +11,6 @@ import CVBuilderView from '@/components/features/CVBuilderView';
 import JobSearchView from '@/components/features/JobSearchView';
 import TrackerView from '@/components/features/TrackerView';
 import AnalyticsView from '@/components/features/AnalyticsView';
-import AutoApplyView from '@/components/features/AutoApplyView';
 import SettingsView from '@/components/features/SettingsView';
 import { api, getToken, clearToken, ApiError } from '@/lib/api';
 
@@ -52,10 +51,9 @@ export default function DashboardPage() {
     switch (activeView) {
       case 'dashboard':   return <DashboardView onNavigate={setActiveView} />;
       case 'cv':          return <CVBuilderView />;
-      case 'jobs':        return <JobSearchView />;
+      case 'jobs':        return <JobSearchView onNavigate={setActiveView} />;
       case 'tracker':     return <TrackerView />;
       case 'analytics':   return <AnalyticsView />;
-      case 'autoapply':   return <AutoApplyView />;
       case 'settings':    return <SettingsView user={user} onUserUpdate={setUser} />;
       default:            return <DashboardView onNavigate={setActiveView} />;
     }

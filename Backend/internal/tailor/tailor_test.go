@@ -101,3 +101,20 @@ func TestTailorEndToEndWithRewording(t *testing.T) {
 		t.Error("hash should differ for different content")
 	}
 }
+
+func TestQuickMatch(t *testing.T) {
+	strong := QuickMatch(baseCV, Job{Title: "Backend Software Engineer", Description: "<p>Build billing APIs in Go with SQL. Experience required.</p>"})
+	weak := QuickMatch(baseCV, Job{Title: "Pastry Chef", Description: "Bake croissants and sourdough for our bakery"})
+	if strong <= weak || strong < 40 || weak > 15 {
+		t.Fatalf("expected a clear gap, strong=%d weak=%d", strong, weak)
+	}
+	if got := QuickMatch(cvparse.Parsed{}, Job{Title: "Engineer"}); got != -1 {
+		t.Fatalf("empty CV should be -1, got %d", got)
+	}
+	if got := QuickMatch(baseCV, Job{}); got != -1 {
+		t.Fatalf("empty job should be -1, got %d", got)
+	}
+	if a, b := QuickMatch(baseCV, Job{Title: "APIs engineer"}), QuickMatch(baseCV, Job{Title: "API engineer"}); a != b {
+		t.Fatalf("plural stemming: %d vs %d", a, b)
+	}
+}

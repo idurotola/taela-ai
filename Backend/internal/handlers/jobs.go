@@ -48,10 +48,13 @@ func (h *JobsHandler) List(c *gin.Context) {
 	userID := auth.UserID(c)
 	applied := appliedJobIDSet(h.DB, userID)
 	saved := savedJobIDSet(h.DB, userID)
+	scorer := newMatchAnnotator(h.DB, userID)
 
 	result := make([]dto.JobDTO, 0, len(jobs))
 	for _, j := range jobs {
-		result = append(result, dto.FromJob(j, applied[j.ID], saved[j.ID]))
+		d := dto.FromJob(j, applied[j.ID], saved[j.ID])
+		scorer.annotate(&d, j)
+		result = append(result, d)
 	}
 	c.JSON(http.StatusOK, result)
 }

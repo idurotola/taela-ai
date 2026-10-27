@@ -102,3 +102,19 @@ body {
 @media (max-width: 480px) {
   .three-col, .contact-grid, .cv-fields { grid-template-columns: 1fr; }
 }
+
+/* Recruiter workspace: the topbar "Post a job" is redundant next to the side panel's. */
+.bottom-nav-signout { display: none; }
+@media (max-width: 768px) {
+  .bottom-nav-signout { display: inline-flex; }
+}
+@media (min-width: 769px) {
+  .rec-topbar-post { display: none; }
+}
+
+/* Job slide-over: form beside a live preview, stacked on narrow screens. */
+.rec-slide-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
+@media (max-width: 900px) {
+  .rec-slide-grid { display: block; overflow-y: auto; }
+  .rec-slide-grid > form, .rec-slide-preview { overflow: visible !important; }
+}

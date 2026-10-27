@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { Check, Mail, BarChart2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
+import AtsMatch from '@/components/ui/AtsMatch';
 
 interface DashboardProps {
   onNavigate: (view: NavView) => void;
@@ -87,7 +88,10 @@ export default function DashboardView({ onNavigate }: DashboardProps) {
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A' }}>{job.title}</div>
                 <div style={{ fontSize: 11, color: '#6B6B6B' }}>{job.company}{job.location && ` · ${job.location}`}</div>
               </div>
-              <div style={{ textAlign: 'right', fontSize: 10, color: '#aaa' }}>{job.posted}</div>
+              <div style={{ textAlign: 'right' }}>
+                <AtsMatch job={job} size="sm" />
+                <div style={{ fontSize: 10, color: '#aaa' }}>{job.posted}</div>
+              </div>
             </div>
           ))}
         </Card>

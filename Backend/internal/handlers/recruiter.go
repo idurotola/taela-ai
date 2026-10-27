@@ -466,3 +466,36 @@ func (h *RecruiterHandler) emailStageChange(user models.User, job models.Job, st
 		return h.Email.SendApplicationUpdate(ctx, email.Recipient{Email: user.Email, Name: user.Name}, job.Title, job.Company, stage, link)
 	})
 }
+
+// AllApplicants returns everyone who applied to any of the recruiter's
+// postings, newest first, so the dashboard can show one pipeline across jobs.
+func (h *RecruiterHandler) AllApplicants(c *gin.Context) {
+	var jobIDs []string
+	h.DB.Model(&models.Job{}).Where("recruiter_id = ?", auth.UserID(c)).Pluck("id", &jobIDs)
+
+	result := make([]dto.RecruiterApplicantDTO, 0)
+	if len(jobIDs) == 0 {
+		c.JSON(http.StatusOK, result)
+		return
+	}
+	var apps []models.Application
+	h.DB.Where("job_id IN ?", jobIDs).Order("created_at desc").Limit(1000).Find(&apps)
+
+	userIDs := make([]string, 0, len(apps))
+	for _, a := range apps {
+		userIDs = append(userIDs, a.UserID)
+	}
+	var users []models.User
+	if len(userIDs) > 0 {
+		h.DB.Where("id IN ?", userIDs).Find(&users)
+	}
+	byID := make(map[string]models.User, len(users))
+	for _, u := range users {
+		byID[u.ID] = u
+	}
+	for _, a := range apps {
+		u := byID[a.UserID]
+		result = append(result, dto.FromRecruiterApplicant(a, u.Name, u.Email))
+	}
+	c.JSON(http.StatusOK, result)
+}

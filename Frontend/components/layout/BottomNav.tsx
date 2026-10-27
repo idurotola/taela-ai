@@ -1,15 +1,14 @@
 'use client';
 
 import { NavView } from '@/types';
-import { LayoutDashboard, FileText, Search, KanbanSquare, BarChart2, Zap } from 'lucide-react';
+import { LayoutDashboard, FileText, Search, KanbanSquare, BarChart2 } from 'lucide-react';
 
 const NAV = [
   { id: 'dashboard' as NavView, icon: <LayoutDashboard size={20} />, label: 'Home' },
-  { id: 'cv'        as NavView, icon: <FileText size={20} />,        label: 'CV' },
+  { id: 'cv'        as NavView, icon: <FileText size={20} />,        label: 'Profile' },
   { id: 'jobs'      as NavView, icon: <Search size={20} />,          label: 'Jobs' },
   { id: 'tracker'   as NavView, icon: <KanbanSquare size={20} />,    label: 'Track' },
   { id: 'analytics' as NavView, icon: <BarChart2 size={20} />,       label: 'Stats' },
-  { id: 'autoapply' as NavView, icon: <Zap size={20} />,             label: 'Auto' },
 ];
 
 interface BottomNavProps {
