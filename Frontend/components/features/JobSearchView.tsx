@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import Tag, { TagVariant } from '@/components/ui/Tag';
 import { PLATFORM_COLORS } from '@/lib/utils';
 import ExternalApplyDialog from '@/components/features/ExternalApplyDialog';
+import DirectApplyDialog from '@/components/features/DirectApplyDialog';
 import { api } from '@/lib/api';
 import { JobListing } from '@/types';
 import { RefreshCw, Bookmark, Zap, ExternalLink, Link2 } from 'lucide-react';
@@ -22,11 +23,11 @@ export default function JobSearchView() {
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [applying, setApplying] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [platform, setPlatform] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
   const [externalJob, setExternalJob] = useState<JobListing | null>(null);
+  const [directJob, setDirectJob] = useState<JobListing | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchJobs = () =>
@@ -40,23 +41,12 @@ export default function JobSearchView() {
 
   const filtered = platform === 'All' ? jobs : jobs.filter(j => j.platform === platform);
 
-  const handleApply = async (job: JobListing) => {
-    // External jobs are applied for on the source site: open the guided
-    // dialog (CV download + link out) instead of recording a fake "applied".
-    if (job.sourceType === 'external') {
-      setExternalJob(job);
-      return;
-    }
-    const id = job.id;
-    setApplying(prev => new Set(prev).add(id));
-    try {
-      await api.applyToJob(id);
-      setJobs(prev => prev.map(j => j.id === id ? { ...j, applied: true } : j));
-    } catch {
-      // leave the job unmarked so the user can retry
-    } finally {
-      setApplying(prev => { const n = new Set(prev); n.delete(id); return n; });
-    }
+  // Every job opens its own apply step, where the CV can be tailored to that
+  // listing: external jobs get the download-and-continue dialog, Taela jobs
+  // the send-here dialog.
+  const handleApply = (job: JobListing) => {
+    if (job.sourceType === 'external') setExternalJob(job);
+    else setDirectJob(job);
   };
 
   const handleCopyLink = async (job: JobListing) => {
@@ -161,7 +151,6 @@ export default function JobSearchView() {
         )}
         {filtered.map((job: JobListing) => {
           const isApplied = !!job.applied;
-          const isApplying = applying.has(job.id);
           const isSaved = !!job.saved;
           const isSaving = savingId === job.id;
           return (
@@ -312,10 +301,9 @@ export default function JobSearchView() {
                       size="sm"
                       variant="primary"
                       icon={<Zap size={12} />}
-                      disabled={isApplying}
                       onClick={() => handleApply(job)}
                     >
-                      {isApplying ? 'Applying…' : job.sourceType === 'external' ? 'CV & apply' : 'Apply'}
+                      {job.sourceType === 'external' ? 'CV & apply' : 'Tailor & apply'}
                     </Button>
                   </div>
                 )}
@@ -324,6 +312,14 @@ export default function JobSearchView() {
           );
         })}
       </div>
+
+      {directJob && (
+        <DirectApplyDialog
+          job={directJob}
+          onClose={() => setDirectJob(null)}
+          onApplied={() => setJobs(prev => prev.map(j => j.id === directJob.id ? { ...j, applied: true } : j))}
+        />
+      )}
 
       {externalJob && (
         <ExternalApplyDialog
