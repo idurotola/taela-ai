@@ -21,7 +21,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-  { id: 'cv', label: 'CV Builder', icon: <FileText size={16} /> },
+  { id: 'cv', label: 'Profile', icon: <FileText size={16} /> },
   { id: 'jobs', label: 'Job Search', icon: <Search size={16} />, badgeColor: '#E83567' },
   { id: 'tracker', label: 'Applications', icon: <KanbanSquare size={16} /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart2 size={16} /> },

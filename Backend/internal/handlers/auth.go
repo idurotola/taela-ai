@@ -129,7 +129,7 @@ type updateAccountRequest struct {
 
 // UpdateAccount lets a signed-in user change their display name and/or email.
 // The CV record mirrors name/email as its own editable copy (set at signup
-// and again on save from the CV Builder), so it is intentionally left alone
+// and again on save from the Profile page), so it is intentionally left alone
 // here rather than overwritten.
 func (h *AuthHandler) UpdateAccount(c *gin.Context) {
 	userID := auth.UserID(c)

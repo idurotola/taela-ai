@@ -59,7 +59,7 @@ export default function TrackerView() {
     try {
       await downloadCvPdf(await api.cv());
     } catch {
-      // best-effort — the CV Builder has the same export
+      // best-effort — the Profile page has the same export
     } finally {
       setDownloadingId(null);
     }

@@ -4,7 +4,7 @@ import { NavView } from '@/types';
 
 const VIEW_TITLES: Record<NavView, string> = {
   dashboard: 'Dashboard',
-  cv: 'CV Builder',
+  cv: 'Profile',
   jobs: 'Job Search',
   tracker: 'Application Tracker',
   analytics: 'Analytics',

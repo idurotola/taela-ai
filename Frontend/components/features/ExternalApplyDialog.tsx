@@ -115,7 +115,7 @@ export default function ExternalApplyDialog({ job, onClose, onPrepared }: Props)
 
         {cvIsEmpty && (
           <div style={{ fontSize: 13, color: '#977411', background: '#FEF3B0', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
-            Your CV is still empty. Fill it in under <strong>CV Builder</strong> first so you have something to send.
+            Your CV is still empty. Fill it in under <strong>Profile</strong> first so you have something to send.
           </div>
         )}
 
