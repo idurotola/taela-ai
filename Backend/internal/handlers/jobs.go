@@ -27,6 +27,9 @@ type JobsHandler struct {
 
 type applyRequest struct {
 	CoverLetter string `json:"coverLetter"`
+	// UseTailored sends the CV (and cover letter) tailored for this job
+	// instead of the master CV.
+	UseTailored bool `json:"useTailored"`
 }
 
 // openJobs scopes a query to active jobs that haven't passed a recruiter-set
@@ -122,7 +125,20 @@ func (h *JobsHandler) Apply(c *gin.Context) {
 	// they'll see. External ones never leave Taela, so there's nothing to send.
 	if stage == "applied" {
 		app.CoverLetter = strings.TrimSpace(req.CoverLetter)
-		freezeCV(c.Request.Context(), h.DB, h.Store, userID, &app)
+		sent := false
+		if req.UseTailored {
+			var t models.TailoredCV
+			if err := h.DB.Where("user_id = ? AND job_id = ?", userID, job.ID).First(&t).Error; err == nil {
+				var phone string
+				h.DB.Model(&models.CV{}).Where("user_id = ?", userID).Select("phone").Scan(&phone)
+				if sent = freezeTailored(&app, t, phone); sent && app.CoverLetter == "" {
+					app.CoverLetter = t.CoverLetter
+				}
+			}
+		}
+		if !sent {
+			freezeCV(c.Request.Context(), h.DB, h.Store, userID, &app)
+		}
 	}
 	if err := h.DB.Create(&app).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to apply"})

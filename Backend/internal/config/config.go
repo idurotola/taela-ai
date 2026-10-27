@@ -43,6 +43,7 @@ type Config struct {
 	// blank disables AI features and CV upload falls back to manual entry.
 	AIProvider      string
 	AIModel         string
+	AITailorModel   string // stronger model for CV rewriting; defaults to AIModel (or sonnet on anthropic)
 	AIBaseURL       string // optional: an API gateway/proxy in front of the provider
 	AnthropicAPIKey string
 	GeminiAPIKey    string
@@ -91,6 +92,7 @@ func Load() Config {
 
 		AIProvider:      strings.ToLower(getEnv("AI_PROVIDER", "")),
 		AIModel:         getEnv("AI_MODEL", ""),
+		AITailorModel:   getEnv("AI_TAILOR_MODEL", ""),
 		AIBaseURL:       getEnv("AI_BASE_URL", ""),
 		AnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
 		GeminiAPIKey:    getEnv("GEMINI_API_KEY", ""),

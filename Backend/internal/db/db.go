@@ -47,6 +47,9 @@ func AutoMigrate(gormDB *gorm.DB) error {
 		&models.CVEducation{},
 		&models.GuestApplication{},
 		&models.RecruiterVerification{},
+		&models.JobMatch{},
+		&models.TailoredCV{},
+		&models.AIUsage{},
 	); err != nil {
 		return err
 	}

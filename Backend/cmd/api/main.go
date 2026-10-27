@@ -81,7 +81,7 @@ func buildStorage(cfg config.Config) storage.Store {
 
 // buildAI picks the model provider behind CV reading. With none configured,
 // uploads still work and the user fills the CV in by hand.
-func buildAI(cfg config.Config) ai.Provider {
+func buildAI(cfg config.Config, model string) ai.Provider {
 	switch cfg.AIProvider {
 	case "":
 		log.Println("AI_PROVIDER not set — uploaded CVs are stored but not read automatically")
@@ -90,18 +90,17 @@ func buildAI(cfg config.Config) ai.Provider {
 		if cfg.AnthropicAPIKey == "" {
 			log.Fatal("AI_PROVIDER=anthropic needs ANTHROPIC_API_KEY")
 		}
-		model := cfg.AIModel
 		if model == "" {
 			model = "claude-haiku-5-5"
 		}
 		return ai.Anthropic{APIKey: cfg.AnthropicAPIKey, Model: model, BaseURL: cfg.AIBaseURL}
 	case "gemini":
-		if cfg.GeminiAPIKey == "" || cfg.AIModel == "" {
+		if cfg.GeminiAPIKey == "" || model == "" {
 			log.Fatal("AI_PROVIDER=gemini needs GEMINI_API_KEY and AI_MODEL")
 		}
-		return ai.Gemini{APIKey: cfg.GeminiAPIKey, Model: cfg.AIModel, BaseURL: cfg.AIBaseURL}
+		return ai.Gemini{APIKey: cfg.GeminiAPIKey, Model: model, BaseURL: cfg.AIBaseURL}
 	case "bedrock":
-		b, err := ai.NewBedrock(context.Background(), cfg.AWSRegion, cfg.AIModel)
+		b, err := ai.NewBedrock(context.Background(), cfg.AWSRegion, model)
 		if err != nil {
 			log.Fatalf("bedrock: %v", err)
 		}
@@ -142,7 +141,19 @@ func main() {
 
 	emailSvc := buildEmailService(cfg)
 
-	r := router.New(gormDB, cfg, emailSvc, buildStorage(cfg), buildAI(cfg))
+	// Scoring and CV parsing use the fast model; rewriting a CV for a job uses
+	// a stronger one when configured.
+	fastAI := buildAI(cfg, cfg.AIModel)
+	strongAI := fastAI
+	tailorModel := cfg.AITailorModel
+	if tailorModel == "" && cfg.AIProvider == "anthropic" && cfg.AIModel == "" {
+		tailorModel = "claude-sonnet-5-5"
+	}
+	if tailorModel != "" {
+		strongAI = buildAI(cfg, tailorModel)
+	}
+
+	r := router.New(gormDB, cfg, emailSvc, buildStorage(cfg), fastAI, strongAI)
 
 	log.Printf("taela-ai backend listening on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

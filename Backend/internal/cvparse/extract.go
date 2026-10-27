@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/ledongthuc/pdf"
@@ -161,4 +162,57 @@ func docxXMLText(r io.Reader) (string, error) {
 		}
 	}
 	return sb.String(), nil
+}
+
+var multiColumn = regexp.MustCompile(`<w:cols[^>]*w:num="([2-9]|\d{2,})"`)
+
+// Check is one ATS-friendliness finding about an uploaded file.
+type Check struct {
+	Label string
+	OK    bool
+}
+
+// Inspect looks at the file itself for layout features that applicant
+// tracking systems read badly: tables, images and multiple columns in a Word
+// file, or no extractable text in a PDF.
+func Inspect(data []byte, kind Kind) []Check {
+	switch kind {
+	case KindDOCX:
+		xmlBytes := docxDocumentXML(data)
+		if xmlBytes == nil {
+			return nil
+		}
+		x := string(xmlBytes)
+		cols := multiColumn.MatchString(x)
+		return []Check{
+			{Label: "Readable text (no scanned pages)", OK: true},
+			{Label: "No tables", OK: !strings.Contains(x, "<w:tbl>")},
+			{Label: "No images or graphics", OK: !strings.Contains(x, "<w:drawing") && !strings.Contains(x, "<w:pict")},
+			{Label: "Single-column layout", OK: !cols},
+		}
+	case KindPDF:
+		_, err := ExtractText(data, kind)
+		return []Check{{Label: "Readable text (not a scanned image)", OK: err == nil}}
+	}
+	return nil
+}
+
+func docxDocumentXML(data []byte) []byte {
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil
+	}
+	for _, f := range zr.File {
+		if f.Name != "word/document.xml" || f.UncompressedSize64 > 20<<20 {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil
+		}
+		defer rc.Close()
+		b, _ := io.ReadAll(io.LimitReader(rc, 20<<20))
+		return b
+	}
+	return nil
 }

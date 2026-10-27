@@ -17,7 +17,7 @@ import (
 	"taela-ai-backend/internal/storage"
 )
 
-func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.Store, aiProvider ai.Provider) *gin.Engine {
+func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.Store, aiProvider, strongAI ai.Provider) *gin.Engine {
 	r := gin.Default()
 
 	// The rate limiter keys on the client IP. By default gin trusts every
@@ -44,6 +44,7 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.
 	jobsH := &handlers.JobsHandler{DB: db, Store: store, Email: emailSvc, FrontendURL: cfg.FrontendURL}
 	appsH := &handlers.ApplicationsHandler{DB: db}
 	cvH := &handlers.CVHandler{DB: db, Store: store, AI: aiProvider}
+	matchH := &handlers.MatchHandler{DB: db, Store: store, Fast: aiProvider, Strong: strongAI}
 	dashH := &handlers.DashboardHandler{DB: db}
 	adminH := &handlers.AdminHandler{DB: db, Email: emailSvc}
 	settingsH := &handlers.SettingsHandler{DB: db}
@@ -94,6 +95,9 @@ func New(db *gorm.DB, cfg config.Config, emailSvc *email.Service, store storage.
 
 			protected.GET("/jobs", jobsH.List)
 			protected.POST("/jobs/:id/apply", jobsH.Apply)
+			protected.POST("/jobs/:id/match", matchH.Match)
+			protected.POST("/jobs/:id/tailor", matchH.Tailor)
+			protected.GET("/jobs/:id/tailored", matchH.GetTailored)
 			protected.POST("/jobs/:id/save", jobsH.Save)
 			protected.DELETE("/jobs/:id/save", jobsH.Unsave)
 
